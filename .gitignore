@@ -1,0 +1,21 @@
+# Ignorar código fuente
+app.py
+Downloader.spec
+convert_icon.py
+make_transparent.py
+
+# Ignorar binarios, carpetas de compilación e iconos
+bin/
+build/
+dist/
+icon.ico
+icon.png
+downloader_app_icon*.png
+downloader_clean_icon*.png
+
+# Ignorar caché de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.ipynb_checkpoints/
