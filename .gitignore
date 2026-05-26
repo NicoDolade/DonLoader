@@ -20,6 +20,6 @@ __pycache__/
 *.pyd
 .ipynb_checkpoints/
 
-# Ignorar resumen técnico local
+# Ignorar resumen técnico local e información de contexto del asistente
 SUMMARY.md
-
+.antigravity_context.md
