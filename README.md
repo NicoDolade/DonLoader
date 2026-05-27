@@ -9,11 +9,13 @@ Se compila en un único archivo ejecutable portable (`DonLoader.exe`) e independ
 ## 🚀 Características Principales
 
 1. **Portabilidad Absoluta:** Un único archivo `.exe` que incluye internamente el intérprete de Python, las librerías necesarias y los binarios estáticos de **FFmpeg** y **FFprobe**.
-2. **Auto-actualización Silenciosa:** Al arrancar, busca actualizaciones para el descargador `yt-dlp` en segundo plano desde PyPI. Si encuentra una versión nueva, la descarga y la instala dinámicamente en tu carpeta de usuario para que nunca se quede obsoleta cuando las plataformas web cambien sus algoritmos.
-3. **Optimización de Red TCP y DNS:** Al iniciarse (con privilegios de Administrador), la aplicación vacía automáticamente la caché de DNS (`ipconfig /flushdns`) y configura la optimización global de Windows para paquetes TCP (`netsh int tcp set global autotuninglevel=normal`).
-4. **Descarga Ultra-Rápida:** Fuerza a `yt-dlp` a descargar en paralelo utilizando **8 hilos simultáneos** y fragmentos de 10 MB para exprimir al máximo tu ancho de banda de red.
-5. **Diseño Visual Premium:** Interfaz gráfica moderna en Tkinter basada en la paleta de colores oscuros **Catppuccin Mocha**, con barra de progreso fluida, velocidad real de transferencia en MB/s, estimación de tiempo (ETA) y barra inferior con información de versiones en tiempo real.
-6. **Icono Squircle con Transparencia:** Icono personalizado de bordes redondeados, integrado en la barra de tareas de Windows y en la barra de título de la aplicación.
+2. **Cola de Descargas en Paralelo (Queue Manager):** Permite encolar múltiples descargas de forma ilimitada. El programa ejecuta un máximo de 3 descargas simultáneamente, manteniendo las demás en espera ("En cola...") y arrancándolas automáticamente a medida que finalizan las activas.
+3. **Creación Automática de Subcarpetas:** Para cada descarga, el programa crea una subcarpeta con el título sanitizado del video/audio dentro del directorio de destino seleccionado, guardando allí el archivo para mantener tu disco organizado.
+4. **Auto-actualización Interactiva con Auto-reinicio:** Al iniciar, busca silenciosamente nuevas versiones de la librería `yt-dlp` en PyPI. Si encuentra una, muestra una interfaz modal flotante con barra de progreso, descarga la actualización en segundo plano e inicia automáticamente un auto-reinicio (`os.execv`) para que surta efecto de inmediato.
+5. **Optimización de Red TCP y DNS:** Al iniciarse (con privilegios de Administrador), la aplicación vacía automáticamente la caché de DNS (`ipconfig /flushdns`) y configura la optimización global de Windows para paquetes TCP (`netsh int tcp set global autotuninglevel=normal`).
+6. **Descarga Ultra-Rápida:** Fuerza a `yt-dlp` a descargar en paralelo utilizando **8 hilos simultáneos** y fragmentos de 10 MB para exprimir al máximo tu ancho de banda de red.
+7. **Diseño Visual Premium:** Interfaz gráfica moderna en Tkinter basada en la paleta de colores oscuros **Catppuccin Mocha**, con un panel inferior scrollable e interactivo para visualizar el estado y progreso individual de cada descarga de la cola, y una barra inferior limpia.
+8. **Icono Squircle con Transparencia:** Icono personalizado de bordes redondeados, integrado en la barra de tareas de Windows y en la barra de título de la aplicación.
 
 ---
 
@@ -27,8 +29,8 @@ Si abres la aplicación directamente haciendo doble clic en `DonLoader.exe`:
 - Permite seleccionar el formato de salida (**MP3**, **MP4** o **MKV**).
 - Permite ajustar la calidad de conversión de audio (128, 192, 256 o 320 kbps) si eliges MP3.
 - Permite examinar tu equipo para definir la carpeta de destino (por defecto, la carpeta de descargas del usuario).
-- Muestra la barra inferior con la versión cargada (ej: `DonLoader v1.1.0 | yt-dlp v2026.05.26`).
-- Al finalizar con éxito, la aplicación **permanece abierta** mostrando una pantalla de éxito con la opción de descargar otro video o cerrar.
+- Muestra la barra inferior con la versión cargada (ej: `DonLoader v1.2.0`).
+- Al hacer clic en Descargar, la URL se añade a la cola visual en tiempo real en la mitad inferior de la pantalla y el campo de texto se vacía inmediatamente, permitiendo seguir añadiendo más descargas al instante sin interrupciones.
 
 ### B. Modo Directo (Integrado / Parámetros)
 Si ejecutas la aplicación pasando el argumento de la URL:

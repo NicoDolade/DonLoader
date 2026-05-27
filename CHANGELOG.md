@@ -4,6 +4,16 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 ---
 
+## [1.2.0] - 2026-05-27
+
+### Añadido
+- **Cola de múltiples descargas en paralelo (Queue Manager):** Soporte para añadir múltiples URLs a descargar de forma simultánea. Se procesan un máximo de 3 descargas concurrentes en paralelo y el resto permanecen en espera ("En cola...") hasta que se liberen hilos.
+- **Creación de subcarpetas automática:** Cada archivo descargado se guarda automáticamente dentro de una subcarpeta con el nombre del título sanitizado del video en el directorio de destino seleccionado.
+- **Diálogo modal de actualización con auto-reinicio:** Diálogo flotante modal (`tk.Toplevel`) con estética Catppuccin Mocha que muestra el progreso de actualización de `yt-dlp`. Al finalizar, el programa se reinicia a sí mismo inmediatamente mediante `os.execv()`.
+- **Limpieza de Barra de Estado (Footer):** Pie de página optimizado que solo muestra la versión `DonLoader v1.2.0` y el estado de la actualización (`Buscando...`, `Al día` o `Actualizando...`), reduciendo ruidos visuales.
+
+---
+
 ## [1.1.0] - 2026-05-26
 
 ### Añadido
