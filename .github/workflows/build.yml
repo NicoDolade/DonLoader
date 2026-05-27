@@ -1,0 +1,45 @@
+name: Build DonLoader Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Se ejecuta al crear un tag como v1.1.0
+
+jobs:
+  build:
+    name: Build Windows Portable Executable
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout Source Code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller yt-dlp pillow requests
+
+    - name: Verify FFmpeg and FFprobe Binaries
+      shell: pwsh
+      run: |
+        if (-not (Test-Path "bin/ffmpeg.exe") -or -not (Test-Path "bin/ffprobe.exe")) {
+          Write-Error "FFmpeg or FFprobe binaries are missing in the bin/ directory! They are required for compilation."
+          exit 1
+        }
+
+    - name: Build Executable with PyInstaller
+      run: |
+        python -m PyInstaller --clean DonLoader.spec
+
+    - name: Create Release and Upload Artifact
+      uses: softprops/action-gh-release@v2
+      with:
+        files: dist/DonLoader.exe
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

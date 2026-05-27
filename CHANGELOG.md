@@ -1,6 +1,20 @@
-# Changelog - Downloader
+# Changelog - DonLoader
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
+
+---
+
+## [1.1.0] - 2026-05-26
+
+### Añadido
+- **Auto-actualización asíncrona:** Búsqueda en segundo plano de actualizaciones para la librería `yt-dlp` desde PyPI, con descarga automática, extracción y carga dinámica en el siguiente inicio (`sys.path.insert`).
+- **Barra de Estado (Footer):** Franja inferior en la GUI que muestra la versión del programa, la versión actual de la librería descargadora y el estado de la búsqueda de actualizaciones en tiempo real.
+- **Workflow de GitHub Actions:** Archivo de integración continua `.github/workflows/build.yml` configurado en Windows para compilar y publicar de forma automatizada los ejecutables `DonLoader.exe` al subir tags de versión.
+- **Regla de Sincronización:** Documentación formalizada de que todo cambio debe actualizar el Changelog, el Summary y el archivo de contexto del asistente.
+
+### Modificado
+- **Renombrado General:** Cambiado el nombre de toda la aplicación y proyecto de "Downloader" a "DonLoader".
+- **Mejoras Visuales:** Refinado de las transiciones de botones con hovers y re-dimensionamiento de la ventana para acomodar el footer sin alterar la disposición de los campos de texto principales.
 
 ---
 
@@ -12,8 +26,8 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 - **Optimizaciones de red:**
   - Limpieza de DNS (`ipconfig /flushdns`) al inicio del programa.
   - Activación de TCP Auto-Tuning en modo `normal` mediante comandos de netsh.
-  - Descarga multi-hilo en parallel (8 hilos de descarga simultánea en `yt-dlp` en bloques de 10 MB).
-- **Temática Catppuccin Mocha:** Interfaz gráfica oscura premium utilizando la paleta de colores oficial de Catppuccin Mocha (Base, Surface, Text, Accent Blue, Green, Red).
-- **Icono Squircle Personalizado:** Icono con diseño de Inteligencia Artificial de bordes redondeados y transparencia real en los bordes, aplicado al archivo `.exe`, la barra de título de la ventana y en la barra de tareas de Windows.
-- **Empaquetado estático:** Inclusión interna automática de los ejecutables de FFmpeg y FFprobe para asegurar la conversión de audio a MP3 y fusión de pistas de video/audio sin dependencias del sistema.
+  - Descarga multi-hilo en paralelo (8 hilos de descarga simultánea en `yt-dlp` en bloques de 10 MB).
+- **Temática Catppuccin Mocha:** Interfaz gráfica oscura premium utilizando la paleta de colores oficial de Catppuccin Mocha.
+- **Icono Squircle Personalizado:** Icono con diseño de IA de bordes redondeados y transparencia real en los bordes.
+- **Empaquetado estático:** Inclusión interna automática de los ejecutables de FFmpeg y FFprobe.
 - **Flujo de UAC:** Configuración del manifest del ejecutable para requerir permisos de administrador de forma obligatoria durante el arranque.
