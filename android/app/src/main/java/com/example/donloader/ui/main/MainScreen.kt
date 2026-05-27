@@ -49,6 +49,13 @@ fun MainScreen(
     viewModel: MainScreenViewModel = viewModel(),
 ) {
     val context = LocalContext.current
+    val currentVersionName = remember {
+        try {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.2.2"
+        } catch (e: Exception) {
+            "1.2.2"
+        }
+    }
     val tasks by viewModel.tasks.collectAsStateWithLifecycle()
     val selectedFolderName by viewModel.selectedFolderName.collectAsStateWithLifecycle()
     val updateInfo by viewModel.updateInfo.collectAsStateWithLifecycle()
@@ -280,7 +287,7 @@ fun MainScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "DonLoader v1.2.0",
+                    text = "DonLoader v$currentVersionName",
                     color = TextSecondary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold

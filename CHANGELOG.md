@@ -4,6 +4,13 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 ---
 
+## [1.2.3] - 2026-05-27
+
+### Corregido
+- **Versión Dinámica en el Footer (Android):** Se modificó la interfaz de usuario en `MainScreen.kt` para consultar dinámicamente la versión real instalada desde el `PackageManager` del sistema, solucionando el texto estático ("v1.2.0") que aparecía anteriormente en el pie de página.
+
+---
+
 ## [1.2.2] - 2026-05-27
 
 ### Corregido
