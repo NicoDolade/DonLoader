@@ -8,7 +8,6 @@ make_transparent.py
 bin/
 build/
 dist/
-icon.ico
 icon.png
 downloader_app_icon*.png
 downloader_clean_icon*.png
