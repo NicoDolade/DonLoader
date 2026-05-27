@@ -4,6 +4,14 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 ---
 
+## [1.2.2] - 2026-05-27
+
+### Corregido
+- **Esquinas del Icono en Android:** Eliminado por completo el reborde blanco residual de las esquinas del icono del launcher mediante un script de enmascarado optimizado (recorte con inset de 4px y radio de 51px), actualizando todas las densidades de mipmaps `.webp`.
+- **Bucle Infinito de Actualizaciones:** Corregido el bucle infinito del actualizador en Android sincronizando la versión del manifiesto de Gradle (`versionName = "1.2.2"`, `versionCode = 2`) y la de la aplicación de escritorio en `app.py` con el tag de la release.
+
+---
+
 ## [1.2.0] - 2026-05-27
 
 ### Añadido
