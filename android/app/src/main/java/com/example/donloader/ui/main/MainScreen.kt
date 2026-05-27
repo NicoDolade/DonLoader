@@ -1,6 +1,7 @@
 package com.example.donloader.ui.main
 
 import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -257,17 +258,59 @@ fun MainScreen(
 
             // LazyColumn para las descargas de la cola
             LazyColumn(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(tasks, key = { it.id }) { task ->
                     DownloadTaskCard(task = task, onCancel = { viewModel.cancelDownload(task.id) })
                 }
             }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            // Footer / Pie de página
+            HorizontalDivider(color = BorderColor, thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "DonLoader v1.2.0",
+                    color = TextSecondary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                val updateStatusText = if (updateInfo?.hasUpdate == true) {
+                    "Actualización disponible"
+                } else {
+                    "Sin actualizaciones"
+                }
+                val updateStatusColor = if (updateInfo?.hasUpdate == true) {
+                    AccentPeach
+                } else {
+                    AccentGreen
+                }
+
+                Text(
+                    text = updateStatusText,
+                    color = updateStatusColor,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
 
         // Diálogo modal de actualización
         if (updateInfo != null) {
+            val info = updateInfo!!
+            val hasApk = !info.downloadUrl.isNullOrBlank()
+
             AlertDialog(
                 onDismissRequest = {
                     if (updateProgress < 0f) viewModel.dismissUpdateDialog()
@@ -278,7 +321,7 @@ fun MainScreen(
                 title = { Text("Nueva actualización", fontWeight = FontWeight.Bold) },
                 text = {
                     Column {
-                        Text("Está disponible la versión ${updateInfo?.latestVersion} de DonLoader.")
+                        Text("Está disponible la versión ${info.latestVersion} de DonLoader.")
                         Spacer(modifier = Modifier.height(12.dp))
                         if (updateProgress >= 0f) {
                             Text(
@@ -300,17 +343,33 @@ fun MainScreen(
                                 fontWeight = FontWeight.Bold
                             )
                         } else {
-                            Text("¿Deseas descargar e instalar ahora?")
+                            if (hasApk) {
+                                Text("¿Deseas descargar e instalar ahora?")
+                            } else {
+                                Text("El instalador APK automático no está disponible para esta versión en GitHub. ¿Deseas visitar la página de lanzamientos para descargarla manualmente?")
+                            }
                         }
                     }
                 },
                 confirmButton = {
                     if (updateProgress < 0f) {
                         Button(
-                            onClick = { updateInfo?.downloadUrl?.let { viewModel.startAppUpdate(it) } },
+                            onClick = {
+                                if (hasApk) {
+                                    viewModel.startAppUpdate(info.downloadUrl!!)
+                                } else {
+                                    // Abrir navegador web en GitHub Releases
+                                    try {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/NicoDolade/DonLoader/releases"))
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        // Error al abrir
+                                    }
+                                }
+                            },
                             colors = ButtonDefaults.buttonColors(containerColor = AccentBlue, contentColor = BaseColor)
                         ) {
-                            Text("Actualizar", fontWeight = FontWeight.Bold)
+                            Text(if (hasApk) "Actualizar" else "Ver en GitHub", fontWeight = FontWeight.Bold)
                         }
                     }
                 },

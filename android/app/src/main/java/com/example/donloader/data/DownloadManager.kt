@@ -103,8 +103,8 @@ class DownloadManager(private val context: Context) {
                 request.addOption("--no-mtime")
                 
                 // Usar acelerador aria2c si está disponible
-                request.addOption("--downloader", "aria2c")
-                request.addOption("--downloader-args", "aria2c:-c -j 8 -x 8 -s 8 -k 10M")
+                request.addOption("--external-downloader", "aria2c")
+                request.addOption("--external-downloader-args", "aria2c:-c -j 8 -x 8 -s 8 -k 10M")
 
                 // Configurar opciones de salida
                 request.addOption("-o", tempFile.absolutePath)
