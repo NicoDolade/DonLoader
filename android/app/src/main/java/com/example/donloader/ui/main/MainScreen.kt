@@ -508,18 +508,22 @@ fun DownloadTaskCard(
                     modifier = Modifier.weight(1f)
                 )
 
-                if (task.status == DownloadStatus.DESCARGANDO && task.speed.isNotBlank()) {
+                if (task.status == DownloadStatus.DESCARGANDO && (task.speed.isNotBlank() || (task.eta.isNotBlank() && task.eta != "--:--"))) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = task.speed,
-                            color = TextSecondary,
-                            fontSize = 11.sp
-                        )
-                        Text(
-                            text = "ETA: ${task.eta}",
-                            color = TextSecondary,
-                            fontSize = 11.sp
-                        )
+                        if (task.speed.isNotBlank()) {
+                            Text(
+                                text = task.speed,
+                                color = TextSecondary,
+                                fontSize = 11.sp
+                            )
+                        }
+                        if (task.eta.isNotBlank() && task.eta != "--:--") {
+                            Text(
+                                text = "ETA: ${task.eta}",
+                                color = TextSecondary,
+                                fontSize = 11.sp
+                            )
+                        }
                     }
                 }
             }

@@ -4,6 +4,17 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 ---
 
+## [1.2.4] - 2026-05-27
+
+### Añadido
+- **Limpieza Automática de Caché al Iniciar (Android):** Se implementó un sistema de limpieza en el arranque de la aplicación que borra automáticamente cualquier APK de actualización antiguo (`update.apk`) y archivos temporales de descargas huérfanas (`.part`), evitando que la app acumule espacio innecesario en el almacenamiento del celular.
+
+### Corregido
+- **Velocidad y ETA de Descarga (Android):** Corregido el bug que impedía ver la velocidad y el ETA de descarga. Se optimizó el analizador de expresiones regulares en `DownloadManager.kt` para ser insensible a mayúsculas/minúsculas y tolerar espacios, y se corrigió el bucle para conservar los últimos valores válidos obtenidos sin sobreescribirlos con cadenas vacías en líneas sin información de progreso.
+- **Visualización en la UI (Android):** Se modificó la UI para renderizar de manera independiente la velocidad y el tiempo restante de descarga en la cola, adaptándose de forma elástica a la información provista por `yt-dlp` / `aria2c`.
+
+---
+
 ## [1.2.3] - 2026-05-27
 
 ### Corregido

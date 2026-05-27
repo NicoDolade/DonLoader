@@ -131,6 +131,18 @@ class AppUpdater(private val context: Context) {
         }
     }
 
+    fun clearUpdateCache() {
+        try {
+            val cacheFile = File(context.externalCacheDir ?: context.cacheDir, "update.apk")
+            if (cacheFile.exists()) {
+                val deleted = cacheFile.delete()
+                Log.d("AppUpdater", "Leftover update.apk cleared from cache: $deleted")
+            }
+        } catch (e: Exception) {
+            Log.e("AppUpdater", "Error clearing update cache", e)
+        }
+    }
+
     private fun isNewerVersion(current: String, latest: String): Boolean {
         val currentParts = current.split(".").mapNotNull { it.toIntOrNull() }
         val latestParts = latest.split(".").mapNotNull { it.toIntOrNull() }

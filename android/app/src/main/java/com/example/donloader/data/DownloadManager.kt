@@ -30,6 +30,24 @@ class DownloadManager(private val context: Context) {
     // URI de la carpeta seleccionada por el usuario (SAF). Si es nulo o vacío, descarga en el almacenamiento privado de la app.
     var selectedFolderUri: String? = null
 
+    init {
+        // Limpiar cualquier residuo de descargas temporales (.part, .temp, etc) en la caché al iniciar
+        scope.launch(Dispatchers.IO) {
+            try {
+                val cacheDir = context.externalCacheDir ?: context.cacheDir
+                val tempFolder = File(cacheDir, "downloads")
+                if (tempFolder.exists()) {
+                    tempFolder.listFiles()?.forEach { file ->
+                        file.delete()
+                    }
+                    Log.d("DownloadManager", "Startup downloads cache cleanup completed")
+                }
+            } catch (e: Exception) {
+                Log.e("DownloadManager", "Error in startup downloads cache cleanup", e)
+            }
+        }
+    }
+
     fun addDownload(url: String, format: String, quality: String) {
         val taskId = UUID.randomUUID().toString()
         val newTask = DownloadTask(
@@ -129,17 +147,18 @@ class DownloadManager(private val context: Context) {
                     YoutubeDL.getInstance().execute(request, taskId) { progress, eta, line ->
                         // Parsear velocidad del log de yt-dlp si es posible
                         val speedStr = parseSpeedFromLine(line)
-                        val etaStr = if (eta > 0) formatEta(eta) else "--:--"
-
-                        // Cuando yt-dlp pasa al post-procesamiento/conversión
                         val isConverting = line.contains("[ExtractAudio]") || line.contains("[Merger]")
                         
                         updateTask(taskId) { currentTask ->
+                            val newSpeed = if (isConverting) "" else if (speedStr.isNotBlank()) speedStr else currentTask.speed
+                            val newEta = if (isConverting) "" else if (eta > 0) formatEta(eta) else currentTask.eta
+                            val newStatus = if (isConverting) DownloadStatus.CONVIRTIENDO else DownloadStatus.DESCARGANDO
+
                             currentTask.copy(
                                 progress = progress,
-                                speed = if (isConverting) "" else speedStr,
-                                eta = if (isConverting) "" else etaStr,
-                                status = if (isConverting) DownloadStatus.CONVIRTIENDO else DownloadStatus.DESCARGANDO
+                                speed = newSpeed,
+                                eta = newEta,
+                                status = newStatus
                             )
                         }
                     }
@@ -271,11 +290,11 @@ class DownloadManager(private val context: Context) {
     }
 
     private fun parseSpeedFromLine(line: String): String {
-        // Intenta buscar velocidades del tipo "12.3MiB/s" o "450.2KiB/s" o "at 5.4MB/s"
-        val pattern = Pattern.compile("([0-9.]+)([KMG]i?B/s)")
+        // Case-insensitive, optional spaces: e.g. "1.5 MB/s", "142.3 KiB/s", "12.3MiB/s", "450KB/s"
+        val pattern = Pattern.compile("([0-9.]+)\\s*([kmgKMG]i?[Bb]/s)", Pattern.CASE_INSENSITIVE)
         val matcher = pattern.matcher(line)
         if (matcher.find()) {
-            return matcher.group(0) ?: ""
+            return matcher.group(0)?.trim() ?: ""
         }
         return ""
     }
