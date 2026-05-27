@@ -2,6 +2,14 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
+## [1.2.5] - 2026-05-27
+
+### Añadido
+- **Auto-Actualización de yt-dlp (Android):** Se implementó la actualización automática y asíncrona del binario nativo `yt-dlp` en segundo plano en cada inicio de la aplicación. Esto asegura que las firmas y extractores de YouTube y otras plataformas se mantengan siempre actualizados, evitando errores por obsolescencia del motor de descargas.
+
+### Corregido
+- **Filtro de Errores en UI (Android):** Se añadió un filtro inteligente para limpiar los mensajes de error mostrados en la interfaz. Ahora se omiten advertencias repetitivas de expiración ("older than 90 days", etc.) y logs nativos ruidosos para mostrar únicamente el mensaje de error final y evitar que se trunque la información en la pantalla.
+
 ---
 
 ## [1.2.4] - 2026-05-27

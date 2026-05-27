@@ -194,7 +194,7 @@ class DownloadManager(private val context: Context) {
                     updateTask(taskId) {
                         it.copy(
                             status = DownloadStatus.FALLIDO,
-                            error = e.localizedMessage ?: "Error desconocido en la descarga"
+                            error = cleanErrorMessage(e.localizedMessage)
                         )
                     }
                 }
@@ -308,5 +308,21 @@ class DownloadManager(private val context: Context) {
         } else {
             String.format("%02d:%02d", m, s)
         }
+    }
+
+    private fun cleanErrorMessage(message: String?): String {
+        if (message == null) return "Error desconocido en la descarga"
+        
+        val lines = message.split("\n")
+        val cleanLines = lines.filter { line ->
+            val trimmed = line.trim()
+            !trimmed.startsWith("WARNING:", ignoreCase = true) &&
+            !trimmed.contains("is older than", ignoreCase = true) &&
+            !trimmed.contains("update yt-dlp", ignoreCase = true) &&
+            !trimmed.contains("many sites will fail", ignoreCase = true)
+        }
+        
+        val result = cleanLines.joinToString("\n").trim()
+        return if (result.isEmpty()) message.trim() else result
     }
 }
