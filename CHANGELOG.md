@@ -28,6 +28,6 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
   - Activación de TCP Auto-Tuning en modo `normal` mediante comandos de netsh.
   - Descarga multi-hilo en paralelo (8 hilos de descarga simultánea en `yt-dlp` en bloques de 10 MB).
 - **Temática Catppuccin Mocha:** Interfaz gráfica oscura premium utilizando la paleta de colores oficial de Catppuccin Mocha.
-- **Icono Squircle Personalizado:** Icono con diseño de IA de bordes redondeados y transparencia real en los bordes.
+- **Icono Squircle Personalizado:** Icono de bordes redondeados y transparencia real en los bordes.
 - **Empaquetado estático:** Inclusión interna automática de los ejecutables de FFmpeg y FFprobe.
 - **Flujo de UAC:** Configuración del manifest del ejecutable para requerir permisos de administrador de forma obligatoria durante el arranque.

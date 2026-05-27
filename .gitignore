@@ -1,6 +1,4 @@
-# Ignorar código fuente
-app.py
-DonLoader.spec
+# Ignorar scripts auxiliares
 convert_icon.py
 make_transparent.py
 
