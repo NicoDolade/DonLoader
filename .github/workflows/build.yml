@@ -24,11 +24,17 @@ jobs:
         python -m pip install --upgrade pip
         pip install pyinstaller yt-dlp pillow requests
 
-    - name: Verify FFmpeg and FFprobe Binaries
+    - name: Prepare FFmpeg and FFprobe Binaries
       shell: pwsh
       run: |
+        New-Item -ItemType Directory -Path "bin" -Force
+        $ffmpeg = (Get-Command ffmpeg).Source
+        $ffprobe = (Get-Command ffprobe).Source
+        Write-Host "Copying FFmpeg from $ffmpeg and FFprobe from $ffprobe to local bin/..."
+        Copy-Item $ffmpeg "bin\ffmpeg.exe"
+        Copy-Item $ffprobe "bin\ffprobe.exe"
         if (-not (Test-Path "bin/ffmpeg.exe") -or -not (Test-Path "bin/ffprobe.exe")) {
-          Write-Error "FFmpeg or FFprobe binaries are missing in the bin/ directory! They are required for compilation."
+          Write-Error "Failed to copy FFmpeg/FFprobe binaries to bin/ directory!"
           exit 1
         }
 
