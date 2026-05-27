@@ -24,6 +24,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install pyinstaller yt-dlp pillow requests
 
+    - name: Set up FFmpeg
+      uses: FedericoCarboni/setup-ffmpeg@v3
+
     - name: Prepare FFmpeg and FFprobe Binaries
       shell: pwsh
       run: |
