@@ -42,8 +42,15 @@ jobs:
         }
 
     - name: Build Executable with PyInstaller
+      shell: pwsh
       run: |
-        python -m PyInstaller --clean DonLoader.spec
+        python -m PyInstaller --clean DonLoader.spec > pyinstaller.log 2>&1
+        $exitCode = $LASTEXITCODE
+        if ($exitCode -ne 0) {
+          Write-Host "--- PYINSTALLER ERROR LOG ---"
+          Get-Content pyinstaller.log
+          exit $exitCode
+        }
 
     - name: Create Release and Upload Artifact
       uses: softprops/action-gh-release@v2
