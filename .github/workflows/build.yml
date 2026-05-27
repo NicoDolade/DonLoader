@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*' # Se ejecuta al crear un tag como v1.1.0
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build Windows Portable Executable
