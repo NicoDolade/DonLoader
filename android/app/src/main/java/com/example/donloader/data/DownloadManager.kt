@@ -19,7 +19,7 @@ import java.io.FileOutputStream
 import java.util.UUID
 import java.util.regex.Pattern
 
-class DownloadManager(private val context: Context) {
+class DownloadManager private constructor(private val context: Context) {
 
     private val _tasks = MutableStateFlow<List<DownloadTask>>(emptyList())
     val tasks: StateFlow<List<DownloadTask>> = _tasks.asStateFlow()
@@ -29,6 +29,17 @@ class DownloadManager(private val context: Context) {
 
     // URI de la carpeta seleccionada por el usuario (SAF). Si es nulo o vacío, descarga en el almacenamiento privado de la app.
     var selectedFolderUri: String? = null
+
+    companion object {
+        @Volatile
+        private var INSTANCE: DownloadManager? = null
+
+        fun get(context: Context): DownloadManager {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: DownloadManager(context.applicationContext).also { INSTANCE = it }
+            }
+        }
+    }
 
     init {
         // Limpiar cualquier residuo de descargas temporales (.part, .temp, etc) en la caché al iniciar
@@ -101,9 +112,10 @@ class DownloadManager(private val context: Context) {
                 val sanitizedTitle = sanitizeFilename(videoTitle)
                 val ext = if (task.format == "MP3") "mp3" else if (task.format == "MKV") "mkv" else "mp4"
                 val finalFileName = "$sanitizedTitle.$ext"
+                val thumbnailUrl = videoInfo.thumbnail
 
                 updateTask(taskId) {
-                    it.copy(title = videoTitle, status = DownloadStatus.DESCARGANDO)
+                    it.copy(title = videoTitle, thumbnailUrl = thumbnailUrl, status = DownloadStatus.DESCARGANDO)
                 }
 
                 // 2. Definir ruta temporal en caché

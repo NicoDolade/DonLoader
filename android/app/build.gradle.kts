@@ -20,8 +20,8 @@ android {
         applicationId = "com.example.donloader"
         minSdk = 24
         targetSdk = 36
-        versionCode = 5
-        versionName = "1.2.5"
+        versionCode = 6
+        versionName = "1.2.6"
     }
 
     signingConfigs {
@@ -112,4 +112,7 @@ dependencies {
   // DocumentFile & Compose Icons
   implementation(libs.androidx.documentfile)
   implementation(libs.androidx.compose.material.icons)
+
+  // Coil - image loading for video thumbnails
+  implementation(libs.coil.compose)
 }

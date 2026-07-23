@@ -7,6 +7,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.donloader.data.DownloadManager
 import com.example.donloader.data.DownloadTask
+import com.example.donloader.service.DownloadService
 import com.example.donloader.updater.AppUpdater
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,7 +16,7 @@ import kotlinx.coroutines.launch
 
 class MainScreenViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val downloadManager = DownloadManager(application)
+    private val downloadManager = DownloadManager.get(application)
     private val appUpdater = AppUpdater(application)
 
     val tasks: StateFlow<List<DownloadTask>> = downloadManager.tasks
@@ -39,6 +40,9 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         _selectedFolderUri.value = uriStr
         _selectedFolderName.value = nameStr
         downloadManager.selectedFolderUri = uriStr.ifBlank { null }
+
+        // Arrancar el Foreground Service de descargas (protege las descargas al minimizar la app)
+        DownloadService.start(application)
 
         // Verificar actualizaciones de GitHub al arrancar
         checkForUpdates()

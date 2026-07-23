@@ -2,6 +2,18 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
+## [1.2.6] - 2026-07-23
+
+### Añadido
+- **Foreground Service de Descargas (Android):** Se implementó `DownloadService`, un Foreground Service con notificación persistente que hospeda el `DownloadManager` desacoplado del ciclo de vida de la Activity. Las descargas nativas de `yt-dlp` ya no se cancelan al minimizar la app o cambiar a otra aplicación, y la notificación muestra el progreso global (cantidad activa + porcentaje promedio). Se agregaron los permisos `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_DATA_SYNC` y `POST_NOTIFICATIONS`, y la solicitud runtime en Android 13+.
+- **Miniaturas de Video en la Cola (Android):** Se extendió `DownloadTask` con `thumbnailUrl` y se extrae la URL de miniatura desde `getInfo()` de yt-dlp durante la fase `EXTRAYENDO`. Las tarjetas de descarga muestran ahora la miniatura del video cargada con la librería Coil (`coil-compose`), con placeholder Catppuccin mientras carga o si falla.
+
+### Modificado
+- **`DownloadManager` como Singleton (Android):** Se convirtió `DownloadManager` en un singleton gestionado por el `Application` (`companion object` con `get(context)`) para que su `CoroutineScope` sobreviva independientemente del `ViewModel`/Activity. El `ViewModel` ahora solo observa el `StateFlow` expuesto.
+- **Arranque del Servicio en el ViewModel (Android):** `MainScreenViewModel.init` ahora invoca `DownloadService.start(application)` para garantizar que el servicio esté activo apenas la UI compone por primera vez.
+
+---
+
 ## [1.2.5] - 2026-05-27
 
 ### Añadido

@@ -15,6 +15,7 @@ nav3Core = "1.0.1"
 lifecycleViewmodelNav3 = "2.10.0"
 youtubedlAndroid = "0.18.1"
 documentfile = "1.0.1"
+coil = "2.7.0"
 
 
 [libraries]
@@ -44,6 +45,7 @@ youtubedl-ffmpeg = { module = "io.github.junkfood02.youtubedl-android:ffmpeg", v
 youtubedl-aria2c = { module = "io.github.junkfood02.youtubedl-android:aria2c", version.ref = "youtubedlAndroid" }
 androidx-documentfile = { module = "androidx.documentfile:documentfile", version.ref = "documentfile" }
 androidx-compose-material-icons = { group = "androidx.compose.material", name = "material-icons-core" }
+coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }

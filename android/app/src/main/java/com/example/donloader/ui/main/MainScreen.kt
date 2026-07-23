@@ -18,8 +18,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -28,6 +31,8 @@ import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavKey
+import coil.compose.AsyncImage
+import com.example.donloader.R
 import com.example.donloader.data.DownloadStatus
 import com.example.donloader.data.DownloadTask
 
@@ -427,9 +432,25 @@ fun DownloadTaskCard(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
+                // Miniatura del video (cargada vía Coil desde la URL de thumbnail de yt-dlp)
+                AsyncImage(
+                    model = task.thumbnailUrl,
+                    contentDescription = "Miniatura del video",
+                    placeholder = painterResource(R.drawable.thumb_placeholder),
+                    error = painterResource(R.drawable.thumb_placeholder),
+                    fallback = painterResource(R.drawable.thumb_placeholder),
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(width = 72.dp, height = 48.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(SurfaceColor)
+                        .border(1.dp, BorderColor, RoundedCornerShape(6.dp))
+                )
+
+                Spacer(modifier = Modifier.width(10.dp))
+
                 Column(modifier = Modifier.weight(1f)) {
                     // Título del Video
                     Text(

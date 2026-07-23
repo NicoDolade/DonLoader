@@ -10,6 +10,7 @@ data class DownloadTask(
     val eta: String = "",
     val format: String = "MP4",
     val quality: String = "",
+    val thumbnailUrl: String? = null,
     val error: String? = null
 ) {
     val displayTitle: String
