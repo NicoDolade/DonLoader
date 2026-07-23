@@ -11,6 +11,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import java.io.File
@@ -23,6 +24,9 @@ class DownloadManager private constructor(private val context: Context) {
 
     private val _tasks = MutableStateFlow<List<DownloadTask>>(emptyList())
     val tasks: StateFlow<List<DownloadTask>> = _tasks.asStateFlow()
+
+    private val _engineStatus = MutableStateFlow<EngineStatus>(EngineStatus.Unknown)
+    val engineStatus: StateFlow<EngineStatus> = _engineStatus.asStateFlow()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val downloadSemaphore = Semaphore(3)
@@ -57,6 +61,9 @@ class DownloadManager private constructor(private val context: Context) {
                 Log.e("DownloadManager", "Error in startup downloads cache cleanup", e)
             }
         }
+
+        // Disparar la actualización inicial de yt-dlp; el estado queda publicado en engineStatus
+        refreshEngine()
     }
 
     fun addDownload(url: String, format: String, quality: String) {
@@ -77,6 +84,31 @@ class DownloadManager private constructor(private val context: Context) {
         }
     }
 
+    /**
+     * Actualiza el binario nativo de yt-dlp a la última versión estable y publica el progreso
+     * en [engineStatus]. Se ejecuta en background y reentrante: si ya hay una actualización
+     * en curso, se ignora la nueva llamada.
+     */
+    fun refreshEngine() {
+        val current = _engineStatus.value
+        if (current is EngineStatus.Updating) return
+        _engineStatus.value = EngineStatus.Updating()
+
+        scope.launch(Dispatchers.IO) {
+            try {
+                val status = YoutubeDL.getInstance()
+                    .updateYoutubeDL(context, YoutubeDL.UpdateChannel.STABLE)
+                Log.d("DownloadManager", "yt-dlp update status: $status")
+                _engineStatus.value = EngineStatus.UpToDate
+            } catch (e: Exception) {
+                Log.e("DownloadManager", "yt-dlp update failed", e)
+                _engineStatus.value = EngineStatus.Failed(
+                    e.localizedMessage ?: "Sin conexión o GitHub no disponible"
+                )
+            }
+        }
+    }
+
     fun cancelDownload(taskId: String) {
         try {
             // Cancelar el proceso nativo de yt-dlp
@@ -91,15 +123,14 @@ class DownloadManager private constructor(private val context: Context) {
     }
 
     fun retryDownload(taskId: String) {
-        // Re-cola una tarea fallida tras forzar una actualización de yt-dlp.
+        // Re-cola una tarea fallida tras esperar a que yt-dlp esté actualizado.
         // Necesario cuando el fallo fue por HTTP 403 (yt-dlp desactualizado frente a YouTube)
         // o cuando la actualización automática al iniciar la app no llegó a completarse.
         scope.launch(Dispatchers.IO) {
-            try {
-                val status = YoutubeDL.getInstance().updateYoutubeDL(context, YoutubeDL.UpdateChannel.STABLE)
-                Log.d("DownloadManager", "yt-dlp force update status: $status (retry $taskId)")
-            } catch (e: Exception) {
-                Log.e("DownloadManager", "yt-dlp force update failed on retry $taskId", e)
+            // Si el motor no está al día todavía, forzar y esperar a que termine
+            if (_engineStatus.value !is EngineStatus.UpToDate) {
+                refreshEngine()
+                _engineStatus.first { it !is EngineStatus.Updating }
             }
             updateTask(taskId) {
                 it.copy(

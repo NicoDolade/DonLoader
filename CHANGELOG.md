@@ -2,6 +2,25 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
+## [1.2.8] - 2026-07-23
+
+### Añadido
+- **Estado del Motor yt-dlp Visible y Bloqueante (Android):** Nuevo `EngineStatus` (`Unknown` / `Updating` / `UpToDate` / `Failed`) emitido por `DownloadManager` y observado por la UI. Mientras el motor se está actualizando:
+  - Banner azul con spinner arriba del botón **Descargar** mostrando "Actualizando motor yt-dlp — Las descargas se habilitarán al terminar".
+  - Botón **Descargar** deshabilitado y texto cambiado a "Esperando motor yt-dlp...".
+  - No se inicia ningún `processDownload` nuevo hasta que el motor quede en `UpToDate`.
+  - Si la actualización falla (sin red / rate-limit), banner rojo persistente con "Motor yt-dlp desactualizado" + botón **Reintentar** que dispara `refreshEngine()` manualmente.
+- **`DownloadManager.refreshEngine()`:** Punto único de actualización del binario `yt-dlp` (canal `STABLE`). Reentrante: llamadas concurrentes se ignoran mientras hay una en curso. Reemplaza las dos llamadas duplicadas previas (`DonLoaderApp.updateYtDlpAsync` y el `updateYoutubeDL` inline de `retryDownload`).
+- **`retryDownload` ahora espera al motor:** Si el motor no está al día al reintentar una tarea fallida, primero dispara `refreshEngine()` y aguarda con `_engineStatus.first { it !is EngineStatus.Updating }` antes de re-colar, garantizando que la re-descarga use yt-dlp fresco.
+
+### Modificado
+- **`DonLoaderApp` simplificado:** Se eliminó la corrutina `updateYtDlpAsync` propia. La inicialización nativa (YoutubeDL/FFmpeg/Aria2c) sigue en `DonLoaderApp.onCreate`, pero la actualización de yt-dlp la delega al singleton `DownloadManager` para que su estado sea observable y la UI pueda bloquear/reaccionar.
+
+### Corregido
+- **Carrera entre actualización de yt-dlp y primera descarga (raíz del HTTP 403):** Ya no es posible disparar una descarga con el `yt-dlp` bundled antes de que termine la actualización inicial; la UI bloquea el botón hasta `UpToDate` y muestra el progreso.
+
+---
+
 ## [1.2.7] - 2026-07-23
 
 ### Añadido

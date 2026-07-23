@@ -36,6 +36,7 @@ import coil.compose.AsyncImage
 import com.example.donloader.R
 import com.example.donloader.data.DownloadStatus
 import com.example.donloader.data.DownloadTask
+import com.example.donloader.data.EngineStatus
 
 // Paleta Catppuccin Mocha
 val BaseColor = Color(0xFF1E1E2E)
@@ -64,6 +65,7 @@ fun MainScreen(
     }
     val tasks by viewModel.tasks.collectAsStateWithLifecycle()
     val selectedFolderName by viewModel.selectedFolderName.collectAsStateWithLifecycle()
+    val engineStatus by viewModel.engineStatus.collectAsStateWithLifecycle()
     val updateInfo by viewModel.updateInfo.collectAsStateWithLifecycle()
     val updateProgress by viewModel.updateProgress.collectAsStateWithLifecycle()
 
@@ -231,7 +233,14 @@ fun MainScreen(
                 }
             }
 
+            // Banner de estado del motor yt-dlp (visible solo cuando no está al día)
+            EngineStatusBanner(
+                status = engineStatus,
+                onRetry = { viewModel.refreshEngine() }
+            )
+
             // Botón Principal Descargar
+            val engineReady = engineStatus is EngineStatus.UpToDate || engineStatus is EngineStatus.Unknown
             Button(
                 onClick = {
                     if (urlInput.isNotBlank()) {
@@ -239,7 +248,7 @@ fun MainScreen(
                         urlInput = "" // Limpiar input de inmediato
                     }
                 },
-                enabled = urlInput.isNotBlank(),
+                enabled = urlInput.isNotBlank() && engineReady,
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = AccentBlue,
@@ -251,8 +260,11 @@ fun MainScreen(
                     .padding(bottom = 16.dp)
             ) {
                 Text(
-                    text = "Descargar",
-                    color = if (urlInput.isNotBlank()) BaseColor else TextSecondary,
+                    text = when (engineStatus) {
+                        is EngineStatus.Updating -> "Esperando motor yt-dlp..."
+                        else -> "Descargar"
+                    },
+                    color = if (urlInput.isNotBlank() && engineReady) BaseColor else TextSecondary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
@@ -569,6 +581,87 @@ fun DownloadTaskCard(
                                 fontSize = 11.sp
                             )
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun EngineStatusBanner(
+    status: EngineStatus,
+    onRetry: () -> Unit
+) {
+    when (status) {
+        EngineStatus.UpToDate, EngineStatus.Unknown -> Unit
+        is EngineStatus.Updating -> {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = SurfaceColor),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp)
+                    .border(1.dp, AccentBlue, RoundedCornerShape(10.dp))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        color = AccentBlue,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Actualizando motor yt-dlp",
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Las descargas se habilitarán al terminar",
+                            color = TextSecondary,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+            }
+        }
+        is EngineStatus.Failed -> {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = SurfaceColor),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp)
+                    .border(1.dp, AccentRed, RoundedCornerShape(10.dp))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Motor yt-dlp desactualizado",
+                            color = AccentRed,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Reintentá para evitar el error 403 de YouTube",
+                            color = TextSecondary,
+                            fontSize = 11.sp
+                        )
+                    }
+                    TextButton(onClick = onRetry) {
+                        Text("Reintentar", color = AccentBlue, fontWeight = FontWeight.Bold)
                     }
                 }
             }

@@ -7,6 +7,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.donloader.data.DownloadManager
 import com.example.donloader.data.DownloadTask
+import com.example.donloader.data.EngineStatus
 import com.example.donloader.service.DownloadService
 import com.example.donloader.updater.AppUpdater
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,6 +21,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
     private val appUpdater = AppUpdater(application)
 
     val tasks: StateFlow<List<DownloadTask>> = downloadManager.tasks
+    val engineStatus: StateFlow<EngineStatus> = downloadManager.engineStatus
     val updateProgress: StateFlow<Float> = appUpdater.updateProgress
 
     private val _updateInfo = MutableStateFlow<AppUpdater.UpdateInfo?>(null)
@@ -60,6 +62,10 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
 
     fun retryDownload(taskId: String) {
         downloadManager.retryDownload(taskId)
+    }
+
+    fun refreshEngine() {
+        downloadManager.refreshEngine()
     }
 
     fun updateSelectedFolder(uri: String, displayName: String) {
