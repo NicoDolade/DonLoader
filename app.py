@@ -29,7 +29,7 @@ check_and_load_yt_dlp_update()
 import yt_dlp
 
 # Versión de la aplicación (SemVer)
-APP_VERSION = "v1.2.8"
+APP_VERSION = "v1.2.9"
 
 # Paleta de colores Catppuccin Mocha
 BG_COLOR = "#1e1e2e"          # Base

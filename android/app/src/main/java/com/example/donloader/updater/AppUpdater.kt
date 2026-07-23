@@ -133,10 +133,60 @@ class AppUpdater(private val context: Context) {
 
     fun clearUpdateCache() {
         try {
-            val cacheFile = File(context.externalCacheDir ?: context.cacheDir, "update.apk")
-            if (cacheFile.exists()) {
-                val deleted = cacheFile.delete()
-                Log.d("AppUpdater", "Leftover update.apk cleared from cache: $deleted")
+            val cacheRoot = context.externalCacheDir ?: context.cacheDir
+            var totalFreed: Long = 0
+
+            // 1) Borrar update.apk (nombre esperado) y todos los *.apk que hayan quedado en el cache
+            //    (por si el instalador renombró o quedaron APKs de instalaciones anteriores).
+            val apkCandidates = cacheRoot.listFiles { _, name ->
+                name.equals("update.apk", ignoreCase = true) || name.endsWith(".apk", ignoreCase = true)
+            } ?: emptyArray()
+
+            for (apk in apkCandidates) {
+                val size = apk.length()
+                if (apk.delete()) {
+                    totalFreed += size
+                    Log.d("AppUpdater", "Deleted leftover APK: ${apk.name} (${size / 1024 / 1024} MB)")
+                } else {
+                    // Si está lockeado por el PackageInstaller de Android (típico justo después de instalar
+                    // una actualización), reintentar varias veces con un pequeño delay.
+                    var deleted = false
+                    repeat(5) { attempt ->
+                        kotlinx.coroutines.runBlocking {
+                            kotlinx.coroutines.delay(400L * (attempt + 1))
+                        }
+                        if (apk.delete()) {
+                            deleted = true
+                            totalFreed += size
+                            Log.d("AppUpdater", "Deleted leftover APK on retry $attempt: ${apk.name} (${size / 1024 / 1024} MB)")
+                            return@repeat
+                        }
+                    }
+                    if (!deleted) {
+                        Log.w("AppUpdater", "Could not delete ${apk.name} (locked by installer? ${size / 1024 / 1024} MB)")
+                    }
+                }
+            }
+
+            // 2) Borrar archivos temporales de descargas huérfanos (.part, .tmp, .temp, .download)
+            val tempCandidates = cacheRoot.walkTopDown().filter { f ->
+                f.isFile && (
+                    f.name.endsWith(".part", ignoreCase = true) ||
+                    f.name.endsWith(".tmp", ignoreCase = true) ||
+                    f.name.endsWith(".temp", ignoreCase = true) ||
+                    f.name.endsWith(".download", ignoreCase = true) ||
+                    f.name.endsWith(".crdownload", ignoreCase = true)
+                )
+            }
+            for (tmp in tempCandidates) {
+                val size = tmp.length()
+                if (tmp.delete()) {
+                    totalFreed += size
+                }
+            }
+
+            if (totalFreed > 0) {
+                Log.d("AppUpdater", "Cache cleanup freed ${totalFreed / 1024 / 1024} MB total")
             }
         } catch (e: Exception) {
             Log.e("AppUpdater", "Error clearing update cache", e)

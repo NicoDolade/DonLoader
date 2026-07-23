@@ -2,6 +2,14 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
+## [1.2.9] - 2026-07-23
+
+### Corregido
+- **Acumulación de APKs en la caché interna (Android):** Se robusteció `AppUpdater.clearUpdateCache()` para borrar **todos** los `*.apk` que queden en la caché (no solo `update.apk` literal), incluye reintentos con backoff cuando el archivo está lockeado por el `PackageInstaller` de Android, y barre también archivos temporales huérfanos (`.part`, `.tmp`, `.temp`, `.download`, `.crdownload`) en todo el árbol de la caché. Se loguea en `logcat` el espacio total liberado.
+- **Limpieza post-instalación inmediata:** Se registró un `BroadcastReceiver` en `DonLoaderApp` para `ACTION_MY_PACKAGE_REPLACED` que dispara `clearUpdateCache()` automáticamente al completarse la instalación de una actualización OTA. Resuelve el caso típico donde el `delete()` en `MainActivity.onCreate` fallaba porque el instalador aún tenía lock sobre el APK; el receiver corre cuando Android ya liberó el lock.
+
+---
+
 ## [1.2.8] - 2026-07-23
 
 ### Añadido
