@@ -2,6 +2,16 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
+## [1.2.7] - 2026-07-23
+
+### Añadido
+- **Reintento de Descargas Fallidas con Auto-Update de yt-dlp (Android):** Botón de reintento (ícono `Refresh`) en las tarjetas de la cola con estado `FALLIDO`. Al pulsarlo se fuerza sincrónicamente una actualización de `yt-dlp` (canal `STABLE`) antes de re-colar la tarea, resolviendo el error `HTTP 403 Forbidden` que YouTube devuelve cuando la versión bundled de yt-dlp quedó obsoleta o la actualización automática al iniciar la app no llegó a completarse antes de la primera descarga.
+
+### Corregido
+- **HTTP 403 Forbidden en YouTube (Android):** Se eliminó la condición de carrera en la que una descarga podía dispararse con el `yt-dlp` bundled antes de que la actualización automática de `DonLoaderApp.onCreate` finalizara. El usuario ahora puede recuperar la descarga fallida con un toque sin reinstalar la app.
+
+---
+
 ## [1.2.6] - 2026-07-23
 
 ### Añadido

@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -276,7 +277,11 @@ fun MainScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(tasks, key = { it.id }) { task ->
-                    DownloadTaskCard(task = task, onCancel = { viewModel.cancelDownload(task.id) })
+                    DownloadTaskCard(
+                        task = task,
+                        onCancel = { viewModel.cancelDownload(task.id) },
+                        onRetry = { viewModel.retryDownload(task.id) }
+                    )
                 }
             }
 
@@ -400,7 +405,8 @@ fun MainScreen(
 @Composable
 fun DownloadTaskCard(
     task: DownloadTask,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    onRetry: () -> Unit = {}
 ) {
     val statusColor = when (task.status) {
         DownloadStatus.COMPLETADO -> AccentGreen
@@ -470,18 +476,36 @@ fun DownloadTaskCard(
                     )
                 }
 
-                // Botón de Cancelación (visible solo si no ha finalizado)
-                if (task.status != DownloadStatus.COMPLETADO && task.status != DownloadStatus.FALLIDO) {
-                    IconButton(
-                        onClick = onCancel,
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Cancelar descarga",
-                            tint = AccentRed,
-                            modifier = Modifier.size(20.dp)
-                        )
+                // Botones de acción según estado
+                when (task.status) {
+                    DownloadStatus.FALLIDO -> {
+                        // Reintentar: fuerza actualización de yt-dlp antes de re-colar (útil contra HTTP 403)
+                        IconButton(
+                            onClick = onRetry,
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Reintentar descarga (actualiza yt-dlp)",
+                                tint = AccentBlue,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    else -> {
+                        if (task.status != DownloadStatus.COMPLETADO) {
+                            IconButton(
+                                onClick = onCancel,
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Cancelar descarga",
+                                    tint = AccentRed,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }

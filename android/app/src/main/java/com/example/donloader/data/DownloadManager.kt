@@ -90,6 +90,30 @@ class DownloadManager private constructor(private val context: Context) {
         }
     }
 
+    fun retryDownload(taskId: String) {
+        // Re-cola una tarea fallida tras forzar una actualización de yt-dlp.
+        // Necesario cuando el fallo fue por HTTP 403 (yt-dlp desactualizado frente a YouTube)
+        // o cuando la actualización automática al iniciar la app no llegó a completarse.
+        scope.launch(Dispatchers.IO) {
+            try {
+                val status = YoutubeDL.getInstance().updateYoutubeDL(context, YoutubeDL.UpdateChannel.STABLE)
+                Log.d("DownloadManager", "yt-dlp force update status: $status (retry $taskId)")
+            } catch (e: Exception) {
+                Log.e("DownloadManager", "yt-dlp force update failed on retry $taskId", e)
+            }
+            updateTask(taskId) {
+                it.copy(
+                    status = DownloadStatus.EN_COLA,
+                    error = null,
+                    progress = 0f,
+                    speed = "",
+                    eta = ""
+                )
+            }
+            processDownload(taskId)
+        }
+    }
+
     private suspend fun processDownload(taskId: String) {
         // Esperar en el semáforo para garantizar máximo 3 concurrentes
         downloadSemaphore.withPermit {

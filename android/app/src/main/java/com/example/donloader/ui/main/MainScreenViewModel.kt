@@ -58,6 +58,10 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         downloadManager.cancelDownload(taskId)
     }
 
+    fun retryDownload(taskId: String) {
+        downloadManager.retryDownload(taskId)
+    }
+
     fun updateSelectedFolder(uri: String, displayName: String) {
         _selectedFolderUri.value = uri
         _selectedFolderName.value = displayName
