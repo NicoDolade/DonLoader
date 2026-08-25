@@ -29,7 +29,7 @@ check_and_load_yt_dlp_update()
 import yt_dlp
 
 # Versión de la aplicación (SemVer)
-APP_VERSION = "v1.3.1"
+APP_VERSION = "v1.3.2"
 
 # Identidad visual DonLoader: oscura, sobria y con un único acento expresivo.
 BG_COLOR = "#101216"
@@ -38,7 +38,7 @@ SURFACE_ELEVATED = "#20262F"
 BORDER_COLOR = "#2B333E"
 TEXT_PRIMARY = "#F3F5F7"
 TEXT_SECONDARY = "#9AA4B2"
-ACCENT_PRIMARY = "#FF6B5B"
+ACCENT_PRIMARY = "#079C5E"
 ACCENT_BLUE = "#7FA8FF"       # Estado informativo del motor
 ACCENT_GREEN = "#43C995"      # Éxito
 ACCENT_RED = "#079C5E"        # Error

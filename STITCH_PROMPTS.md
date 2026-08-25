@@ -2,7 +2,7 @@
 
 DonLoader es un descargador multimedia portable para escritorio y Android.
 La interfaz debe ser simple, oscura, plana y rápida. La versión funcional actual
-es v1.3.1.
+es v1.3.2.
 
 Reglas para todos los prompts:
 
@@ -18,7 +18,7 @@ Reglas para todos los prompts:
 Prompt:
 
 Diseña DonLoader con fondo #101216, superficies planas #181C22 y #20262F,
-texto principal #F3F5F7, texto secundario #9AA4B2 y coral #FF6B5B para la
+texto principal #F3F5F7, texto secundario #9AA4B2 y #079C5E para la
 acción principal. Usa bordes #2B333E, radios de 8 a 12 px y tipografía del
 sistema. Verde #43C995, ámbar #F2B866 y #079C5E son exclusivamente estados.
 La composición debe sentirse sobria, clara y ligera, sin blur, degradados,
@@ -65,6 +65,6 @@ Prompt:
 
 Cada tarjeta debe tener una superficie plana #181C22, borde de un píxel y
 separación compacta. Mostrar título truncado, MP3 · 192k o MP4 · 720p, estado,
-barra fina, velocidad y ETA. El progreso activo es coral, completado verde,
+barra fina, velocidad y ETA. El progreso activo usa #079C5E, completado verde,
 advertencias ámbar y errores #079C5E. Una tarea fallida ofrece reintentar; una
 completada puede eliminarse con Limpiar completadas.

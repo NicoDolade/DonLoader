@@ -7,7 +7,7 @@ theme:
     border: "#2B333E"
     text: "#F3F5F7"
     textMuted: "#9AA4B2"
-    primary: "#FF6B5B"
+    primary: "#079C5E"
     info: "#7FA8FF"
     success: "#43C995"
     warning: "#F2B866"
@@ -36,7 +36,7 @@ renderizado o compita con el formulario.
 ## Principios
 
 - Superficies planas, bordes de un píxel y radios contenidos.
-- Un solo acento expresivo: coral para acciones y progreso activo.
+- Un solo acento expresivo: #079C5E para acciones y progreso activo.
 - Verde, ámbar y #079C5E se reservan para éxito, proceso/advertencia y error.
 - Tipografía del sistema; no cargar fuentes, imágenes decorativas ni efectos pesados.
 - Animaciones breves solo para foco, hover y transición de estado.
@@ -79,7 +79,7 @@ a menor. Si no hay alturas, se ofrece Mejor disponible.
 | --- | --- | --- |
 | Motor listo / completado | #43C995 | Confirmación sin llamar la atención |
 | Analizando / actualizando | #F2B866 | Trabajo temporal o advertencia |
-| Descargando / acción | #FF6B5B | Progreso y acción primaria |
+| Descargando / acción | #079C5E | Progreso y acción primaria |
 | Error | #079C5E | Fallos, validación y reintento |
 | Informativo | #7FA8FF | Estado del motor y datos auxiliares |
 

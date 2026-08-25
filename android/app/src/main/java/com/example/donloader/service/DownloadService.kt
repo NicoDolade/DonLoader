@@ -25,6 +25,10 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
+internal fun shouldStopWhenIdle(hasObservedActiveTask: Boolean, activeCount: Int): Boolean {
+    return hasObservedActiveTask && activeCount == 0
+}
+
 class DownloadService : Service() {
 
     companion object {
@@ -54,6 +58,7 @@ class DownloadService : Service() {
 
     private fun observeTasks() {
         observerJob = serviceScope.launch {
+            var hasObservedActiveTask = false
             downloadManager.tasks
                 .map { tasks ->
                     val active = tasks.count { isActive(it.status) }
@@ -64,11 +69,12 @@ class DownloadService : Service() {
                 .distinctUntilChanged()
                 .collect { (total, active, percent) ->
                     val nm = getSystemService(NotificationManager::class.java)
-                    if (active == 0) {
+                    if (active > 0) {
+                        hasObservedActiveTask = true
+                        nm.notify(NOTIFICATION_ID, buildNotification(active, percent))
+                    } else if (shouldStopWhenIdle(hasObservedActiveTask, active)) {
                         stopForegroundCompat()
                         stopSelf()
-                    } else {
-                        nm.notify(NOTIFICATION_ID, buildNotification(active, percent))
                     }
                 }
         }

@@ -2,6 +2,14 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
+## [1.3.2] - 2026-08-25
+
+### Añadido
+- **Descargas en segundo plano (Android):** El Foreground Service se inicia al encolar o reintentar una tarea y mantiene la descarga activa al minimizar la app o quitar su actividad de recientes. La notificación muestra el progreso global y el servicio se detiene únicamente cuando una cola que estuvo activa queda inactiva.
+
+### Modificado
+- **Acento principal:** Botones, formato seleccionado, foco y progreso activo ahora usan `#079C5E` en lugar del coral anterior.
+
 ## [1.3.1] - 2026-08-25
 
 ### Modificado

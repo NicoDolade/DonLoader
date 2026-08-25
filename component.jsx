@@ -7,7 +7,7 @@ const COLORS = {
   border: '#2B333E',
   text: '#F3F5F7',
   muted: '#9AA4B2',
-  coral: '#FF6B5B',
+  coral: '#079C5E',
   info: '#7FA8FF',
   success: '#43C995',
   warning: '#F2B866',

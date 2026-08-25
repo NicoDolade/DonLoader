@@ -14,9 +14,10 @@ Se compila en un único archivo ejecutable portable (`DonLoader.exe`) e independ
 4. **Auto-actualización Interactiva con Auto-reinicio:** Al iniciar, busca silenciosamente nuevas versiones de la librería `yt-dlp` en PyPI. Si encuentra una, muestra una interfaz modal flotante con barra de progreso, descarga la actualización en segundo plano e inicia automáticamente un auto-reinicio (`os.execv`) para que surta efecto de inmediato.
 5. **Optimización de Red TCP y DNS:** Al iniciarse (con privilegios de Administrador), la aplicación vacía automáticamente la caché de DNS (`ipconfig /flushdns`) y configura la optimización global de Windows para paquetes TCP (`netsh int tcp set global autotuninglevel=normal`).
 6. **Descarga Ultra-Rápida:** Fuerza a `yt-dlp` a descargar en paralelo utilizando **8 hilos simultáneos** y fragmentos de 10 MB para exprimir al máximo tu ancho de banda de red.
-7. **Interfaz simple y sobria:** Escritorio con dos paneles y Android con una sola columna, superficies oscuras planas, un acento coral y tarjetas compactas de estado. No se usan blur, glassmorphism ni degradados.
+7. **Interfaz simple y sobria:** Escritorio con dos paneles y Android con una sola columna, superficies oscuras planas, acento `#079C5E` y tarjetas compactas de estado. No se usan blur, glassmorphism ni degradados.
 8. **Icono Squircle con Transparencia:** Icono personalizado de bordes redondeados, integrado en la barra de tareas de Windows y en la barra de título de la aplicación.
 9. **Calidad de video seleccionable:** MP4 y MKV permiten analizar la metadata, mostrar únicamente las alturas disponibles y descargar con la resolución elegida como límite máximo. Si no se especifica una calidad, se usa la mejor disponible.
+10. **Descargas en segundo plano (Android):** Las tareas se ejecutan mediante un Foreground Service con notificación persistente y continúan al minimizar la app o quitarla de recientes.
 
 ---
 
@@ -31,7 +32,7 @@ Si abres la aplicación directamente haciendo doble clic en `DonLoader.exe`:
 - Permite ajustar la calidad de conversión de audio (128, 192, 256 o 320 kbps) si eliges MP3.
 - Para MP4/MKV, el botón **Analizar** consulta las resoluciones reales del enlace en segundo plano. La mayor queda seleccionada por defecto y podés elegir, por ejemplo, 720p sin descargar una resolución superior.
 - Permite examinar tu equipo para definir la carpeta de destino (por defecto, la carpeta de descargas del usuario).
-- Muestra la barra inferior con la versión cargada (ej: `DonLoader v1.2.0`).
+- Muestra la barra inferior con la versión cargada (ej: `DonLoader v1.3.2`).
 - Al hacer clic en Descargar, la URL se añade a la cola visual en tiempo real en la mitad inferior de la pantalla y el campo de texto se vacía inmediatamente, permitiendo seguir añadiendo más descargas al instante sin interrupciones.
 
 ### B. Modo Directo (Integrado / Parámetros)

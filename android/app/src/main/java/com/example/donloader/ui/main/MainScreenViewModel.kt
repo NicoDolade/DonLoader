@@ -45,9 +45,6 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         _selectedFolderName.value = nameStr
         downloadManager.selectedFolderUri = uriStr.ifBlank { null }
 
-        // Arrancar el Foreground Service de descargas (protege las descargas al minimizar la app)
-        DownloadService.start(application)
-
         // Verificar actualizaciones de GitHub al arrancar
         checkForUpdates()
     }
@@ -55,6 +52,9 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
     fun addDownload(url: String, format: String, quality: String, videoQuality: Int? = null) {
         if (url.isNotBlank()) {
             downloadManager.addDownload(url, format, quality, videoQuality)
+            // El servicio debe arrancar con una tarea real; al iniciar la pantalla
+            // la cola está vacía y el servicio se detenía antes de la primera descarga.
+            DownloadService.start(getApplication())
         }
     }
 
@@ -72,6 +72,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
 
     fun retryDownload(taskId: String) {
         downloadManager.retryDownload(taskId)
+        DownloadService.start(getApplication())
     }
 
     fun refreshEngine() {
