@@ -11,12 +11,15 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.example.donloader.theme.DonLoaderTheme
+import com.example.donloader.theme.DonLoaderThemeStore
 import com.example.donloader.updater.AppUpdater
 
 class MainActivity : ComponentActivity() {
@@ -53,8 +56,14 @@ class MainActivity : ComponentActivity() {
     windowInsetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
     windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
 
+    val themeStore = DonLoaderThemeStore.get(this)
     setContent {
-      DonLoaderTheme { Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { MainNavigation() } }
+      val selectedTheme by themeStore.theme.collectAsState()
+      DonLoaderTheme(theme = selectedTheme) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+          MainNavigation()
+        }
+      }
     }
   }
 }

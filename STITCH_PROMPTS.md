@@ -1,13 +1,16 @@
 # DonLoader — Prompts visuales sincronizados
 
 DonLoader es un descargador multimedia portable para escritorio y Android.
-La interfaz debe ser simple, oscura, plana y rápida. La versión funcional actual
-es v1.3.2.
+La interfaz debe ser simple, plana y rápida. El tema Oscuro actual es el
+predeterminado, pero la app ofrece también Claro, Océano, Pizarra y Arena.
+La versión funcional actual es v1.3.3.
 
 Reglas para todos los prompts:
 
 - No usar glassmorphism, blur, degradados, sombras fuertes ni fondos decorativos.
 - No inventar tareas, tamaños, velocidades ni resoluciones en estados vacíos.
+- Mantener un selector de tema pequeño en el encabezado; nunca agregar una
+  pantalla de ajustes ni un control flotante intrusivo. Persistir la elección.
 - Mantener el límite de tres descargas simultáneas, FFmpeg, aria2c, SAF,
   actualizaciones y descargas en segundo plano.
 - MP3 muestra bitrate. MP4/MKV requieren el flujo Analizar antes de mostrar
@@ -17,12 +20,12 @@ Reglas para todos los prompts:
 
 Prompt:
 
-Diseña DonLoader con fondo #101216, superficies planas #181C22 y #20262F,
-texto principal #F3F5F7, texto secundario #9AA4B2 y #079C5E para la
-acción principal. Usa bordes #2B333E, radios de 8 a 12 px y tipografía del
-sistema. Verde #43C995, ámbar #F2B866 y #079C5E son exclusivamente estados.
-La composición debe sentirse sobria, clara y ligera, sin blur, degradados,
-glassmorphism ni sombras pesadas.
+Diseña DonLoader con una paleta plana seleccionable: Oscuro usa fondo #101216,
+superficies #181C22 y #20262F, texto #F3F5F7/#9AA4B2 y #079C5E para la acción
+principal; Claro usa superficies blancas y fondos #F4F7F5; Océano, Pizarra y
+Arena cambian los neutros sin cambiar el acento #079C5E. Usa bordes contenidos,
+radios de 8 a 12 px y tipografía del sistema. La composición debe sentirse
+sobria, clara y ligera, sin blur, degradados, glassmorphism ni sombras pesadas.
 
 ## 2. Escritorio: dos paneles
 
@@ -30,8 +33,11 @@ Prompt:
 
 Diseña una ventana redimensionable de DonLoader cercana a 960x640, con mínimo
 usable 820x560. Usa dos paneles: a la izquierda Nueva descarga con URL, botón
-Pegar, formato segmentado MP3/MP4/MKV, carpeta de destino y acción principal; a
-la derecha Cola de descargas con tarjetas compactas y scroll. El encabezado
+Pegar y carpeta de destino visibles al inicio. Cuando se pega una URL, revela el
+formato segmentado MP3/MP4/MKV; al elegir formato revela bitrate de audio o el
+flujo de análisis de video. Muestra **Descargar** solo cuando la selección está
+completa y ocúltalo después de iniciar la tarea; la carpeta debe permanecer.
+A la derecha usa Cola de descargas con tarjetas compactas y scroll. El encabezado
 muestra DonLoader y un pill pequeño del estado de yt-dlp. El estado vacío solo
 dice que la cola está vacía y cómo empezar. Añade Limpiar completadas. Sin datos
 de ejemplo.
@@ -40,7 +46,7 @@ de ejemplo.
 
 Prompt:
 
-Para MP4 y MKV muestra un botón Analizar junto al formulario. Después de pulsarlo,
+Para MP4 y MKV muestra un botón Analizar junto al selector de calidad. Después de pulsarlo,
 indica que la metadata se consulta en segundo plano y muestra únicamente las
 alturas reales disponibles ordenadas de mayor a menor: por ejemplo 1080p, 720p,
 480p. Selecciona la mayor por defecto. No analices mientras el usuario escribe,
@@ -52,12 +58,18 @@ Si no hay alturas, muestra Mejor disponible. MP3 solo muestra 128/192/256/320 kb
 Prompt:
 
 Diseña la misma experiencia en una LazyColumn de una sola columna para teléfono
-pequeño y pantalla ancha. Encabezado compacto con marca y estado del motor,
-campo URL con Pegar, selector de formato, Analizar para video, selector de
-calidad real, fila de carpeta y botón Añadir a la cola. Las tarjetas muestran
-miniatura pequeña, formato y calidad, progreso, velocidad, ETA, cancelar y
-reintentar. Mantén el diálogo de actualización y bloquea nuevas descargas
-mientras yt-dlp se actualiza.
+pequeño y pantalla ancha. Al entrar muestra solo el campo URL con Pegar y la
+fila de carpeta persistida. Al escribir una URL revela el selector de formato;
+MP3 revela audio y MP4/MKV revelan Analizar y calidad real. Muestra el botón
+**Descargar** únicamente cuando todo está listo y, después de pulsarlo, vuelve al
+estado inicial sin ocultar la carpeta. Las tarjetas muestran miniatura pequeña,
+formato y calidad, progreso, velocidad, ETA, cancelar y reintentar. Mantén el
+diálogo de actualización y bloquea nuevas descargas mientras yt-dlp se actualiza.
+Usa transiciones breves de fade/expand y cambios suaves de selección, sin efectos
+pesados.
+
+Incluye en el encabezado un icono pequeño de paleta que abre un menú con Oscuro,
+Claro, Océano, Pizarra y Arena. El tema elegido debe mantenerse al reiniciar.
 
 ## 5. Tarjetas y estados
 

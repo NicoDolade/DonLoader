@@ -4,6 +4,14 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,6 +31,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -81,6 +90,7 @@ import com.example.donloader.theme.DonLoaderGreen
 import com.example.donloader.theme.DonLoaderRed
 import com.example.donloader.theme.DonLoaderSurface
 import com.example.donloader.theme.DonLoaderSurfaceElevated
+import com.example.donloader.theme.DonLoaderThemeOption
 import com.example.donloader.theme.DonLoaderTextPrimary
 import com.example.donloader.theme.DonLoaderTextSecondary
 
@@ -94,9 +104,9 @@ fun MainScreen(
     val clipboardManager = LocalClipboardManager.current
     val currentVersionName = remember {
         try {
-            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.3.2"
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.3.3"
         } catch (_: Exception) {
-            "1.3.2"
+            "1.3.3"
         }
     }
     val tasks by viewModel.tasks.collectAsStateWithLifecycle()
@@ -105,9 +115,10 @@ fun MainScreen(
     val rawVideoQualityState by viewModel.videoQualityState.collectAsStateWithLifecycle()
     val updateInfo by viewModel.updateInfo.collectAsStateWithLifecycle()
     val updateProgress by viewModel.updateProgress.collectAsStateWithLifecycle()
+    val selectedTheme by viewModel.selectedTheme.collectAsStateWithLifecycle()
 
     var urlInput by rememberSaveable { mutableStateOf("") }
-    var selectedFormat by rememberSaveable { mutableStateOf("MP4") }
+    var selectedFormat by rememberSaveable { mutableStateOf("") }
     var selectedQuality by rememberSaveable { mutableStateOf("320k") }
     var selectedVideoQuality by rememberSaveable { mutableStateOf<Int?>(null) }
     var analysisRequestedUrl by rememberSaveable { mutableStateOf("") }
@@ -160,7 +171,13 @@ fun MainScreen(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item { Header(engineStatus = engineStatus) }
+            item {
+                Header(
+                    engineStatus = engineStatus,
+                    selectedTheme = selectedTheme,
+                    onThemeSelected = viewModel::setTheme,
+                )
+            }
 
             item {
                 Card(
@@ -193,6 +210,9 @@ fun MainScreen(
                                     urlInput = it
                                     analysisRequestedUrl = ""
                                     selectedVideoQuality = null
+                                    if (it.isBlank()) {
+                                        selectedFormat = ""
+                                    }
                                 },
                                 label = { Text("URL del video o audio") },
                                 singleLine = true,
@@ -213,39 +233,6 @@ fun MainScreen(
                             ) {
                                 Text("Pegar", color = DonLoaderTextPrimary, fontWeight = FontWeight.Bold)
                             }
-                        }
-                        Text(
-                            text = "Formato",
-                            color = DonLoaderTextSecondary,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(top = 16.dp, bottom = 6.dp),
-                        )
-                        FormatSelector(
-                            selectedFormat = selectedFormat,
-                            onFormatSelected = {
-                                selectedFormat = it
-                                analysisRequestedUrl = ""
-                                selectedVideoQuality = null
-                            },
-                        )
-                        if (selectedFormat == "MP3") {
-                            QualitySelector(
-                                selectedQuality = selectedQuality,
-                                onQualitySelected = { selectedQuality = it },
-                            )
-                        } else {
-                            VideoQualityPicker(
-                                state = currentVideoQualityState,
-                                selectedQuality = selectedVideoQuality,
-                                onQualitySelected = { selectedVideoQuality = it },
-                                onAnalyze = {
-                                    analysisRequestedUrl = currentUrl
-                                    selectedVideoQuality = null
-                                    viewModel.analyzeVideoQualities(currentUrl)
-                                },
-                                analyzeEnabled = currentUrl.isNotBlank() && engineReady,
-                            )
                         }
                         Row(
                             modifier = Modifier
@@ -279,43 +266,99 @@ fun MainScreen(
                                 fontWeight = FontWeight.Bold,
                             )
                         }
-                        val canDownload = currentUrl.isNotBlank() &&
-                            engineReady &&
-                            (selectedFormat == "MP3" || videoIsReady)
-                        Button(
-                            onClick = {
-                                viewModel.addDownload(
-                                    currentUrl,
-                                    selectedFormat,
-                                    selectedQuality,
-                                    if (selectedFormat == "MP3") null else selectedVideoQuality,
-                                )
-                                urlInput = ""
-                                analysisRequestedUrl = ""
-                                selectedVideoQuality = null
-                            },
-                            enabled = canDownload,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = DonLoaderCoral,
-                                contentColor = DonLoaderBackground,
-                                disabledContainerColor = DonLoaderSurfaceElevated,
-                                disabledContentColor = DonLoaderTextSecondary,
-                            ),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 14.dp)
-                                .height(48.dp),
+                        AnimatedVisibility(
+                            visible = currentUrl.isNotBlank(),
+                            enter = fadeIn(tween(180)) + expandVertically(tween(180)),
+                            exit = fadeOut(tween(120)) + shrinkVertically(tween(120)),
                         ) {
-                            Text(
-                                text = when {
-                                    engineStatus is EngineStatus.Updating -> "Esperando motor yt-dlp..."
-                                    selectedFormat != "MP3" &&
-                                        currentVideoQualityState is VideoQualityState.Loading -> "Analizando video..."
-                                    else -> "Añadir a la cola"
+                            Column(
+                                modifier = Modifier.animateContentSize(tween(180)),
+                            ) {
+                                Text(
+                                    text = "Formato",
+                                    color = DonLoaderTextSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(top = 16.dp, bottom = 6.dp),
+                                )
+                                FormatSelector(
+                                    selectedFormat = selectedFormat,
+                                    onFormatSelected = {
+                                        selectedFormat = it
+                                        analysisRequestedUrl = ""
+                                        selectedVideoQuality = null
+                                    },
+                                )
+                                AnimatedVisibility(
+                                    visible = selectedFormat.isNotBlank(),
+                                    enter = fadeIn(tween(160)) + expandVertically(tween(160)),
+                                    exit = fadeOut(tween(100)) + shrinkVertically(tween(100)),
+                                ) {
+                                    if (selectedFormat == "MP3") {
+                                        QualitySelector(
+                                            selectedQuality = selectedQuality,
+                                            onQualitySelected = { selectedQuality = it },
+                                        )
+                                    } else {
+                                        VideoQualityPicker(
+                                            state = currentVideoQualityState,
+                                            selectedQuality = selectedVideoQuality,
+                                            onQualitySelected = { selectedVideoQuality = it },
+                                            onAnalyze = {
+                                                analysisRequestedUrl = currentUrl
+                                                selectedVideoQuality = null
+                                                viewModel.analyzeVideoQualities(currentUrl)
+                                            },
+                                            analyzeEnabled = currentUrl.isNotBlank() && engineReady,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        val canSelectDownload = currentUrl.isNotBlank() &&
+                            selectedFormat.isNotBlank() &&
+                            (selectedFormat == "MP3" || videoIsReady)
+                        AnimatedVisibility(
+                            visible = canSelectDownload,
+                            enter = fadeIn(tween(180)) + expandVertically(tween(180)),
+                            exit = fadeOut(tween(120)) + shrinkVertically(tween(120)),
+                        ) {
+                            Button(
+                                onClick = {
+                                    viewModel.addDownload(
+                                        currentUrl,
+                                        selectedFormat,
+                                        selectedQuality,
+                                        if (selectedFormat == "MP3") null else selectedVideoQuality,
+                                    )
+                                    urlInput = ""
+                                    selectedFormat = ""
+                                    selectedQuality = "320k"
+                                    analysisRequestedUrl = ""
+                                    selectedVideoQuality = null
                                 },
-                                fontWeight = FontWeight.Bold,
-                            )
+                                enabled = engineReady,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = DonLoaderCoral,
+                                    contentColor = DonLoaderBackground,
+                                    disabledContainerColor = DonLoaderSurfaceElevated,
+                                    disabledContentColor = DonLoaderTextSecondary,
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 14.dp)
+                                    .height(48.dp),
+                            ) {
+                                Text(
+                                    text = if (engineStatus is EngineStatus.Updating) {
+                                        "Esperando motor yt-dlp..."
+                                    } else {
+                                        "Descargar"
+                                    },
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
                         }
                     }
                 }
@@ -388,7 +431,11 @@ fun MainScreen(
 }
 
 @Composable
-private fun Header(engineStatus: EngineStatus) {
+private fun Header(
+    engineStatus: EngineStatus,
+    selectedTheme: DonLoaderThemeOption,
+    onThemeSelected: (DonLoaderThemeOption) -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -406,7 +453,59 @@ private fun Header(engineStatus: EngineStatus) {
                 fontSize = 11.sp,
             )
         }
+        ThemePicker(selectedTheme = selectedTheme, onThemeSelected = onThemeSelected)
+        Spacer(modifier = Modifier.width(4.dp))
         EngineStatusPill(engineStatus = engineStatus)
+    }
+}
+
+@Composable
+private fun ThemePicker(
+    selectedTheme: DonLoaderThemeOption,
+    onThemeSelected: (DonLoaderThemeOption) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+        ) {
+            Text(
+                text = "◐",
+                color = DonLoaderTextSecondary,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            DonLoaderThemeOption.values().forEach { option ->
+                DropdownMenuItem(
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(option.palette.primary),
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = option.label,
+                                fontWeight = if (option == selectedTheme) FontWeight.Bold else FontWeight.Normal,
+                            )
+                        }
+                    },
+                    onClick = {
+                        onThemeSelected(option)
+                        expanded = false
+                    },
+                )
+            }
+        }
     }
 }
 
@@ -460,18 +559,29 @@ private fun FormatSelector(selectedFormat: String, onFormatSelected: (String) ->
         horizontalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         listOf("MP3", "MP4", "MKV").forEach { format ->
+            val selected = selectedFormat == format
+            val backgroundColor by animateColorAsState(
+                targetValue = if (selected) DonLoaderCoral else Color.Transparent,
+                animationSpec = tween(160),
+                label = "format_background",
+            )
+            val textColor by animateColorAsState(
+                targetValue = if (selected) DonLoaderBackground else DonLoaderTextPrimary,
+                animationSpec = tween(160),
+                label = "format_text",
+            )
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(6.dp))
-                    .background(if (selectedFormat == format) DonLoaderCoral else Color.Transparent)
+                    .background(backgroundColor)
                     .clickable { onFormatSelected(format) }
                     .padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = format,
-                    color = if (selectedFormat == format) DonLoaderBackground else DonLoaderTextPrimary,
+                    color = textColor,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                 )

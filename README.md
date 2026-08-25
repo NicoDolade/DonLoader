@@ -18,6 +18,7 @@ Se compila en un único archivo ejecutable portable (`DonLoader.exe`) e independ
 8. **Icono Squircle con Transparencia:** Icono personalizado de bordes redondeados, integrado en la barra de tareas de Windows y en la barra de título de la aplicación.
 9. **Calidad de video seleccionable:** MP4 y MKV permiten analizar la metadata, mostrar únicamente las alturas disponibles y descargar con la resolución elegida como límite máximo. Si no se especifica una calidad, se usa la mejor disponible.
 10. **Descargas en segundo plano (Android):** Las tareas se ejecutan mediante un Foreground Service con notificación persistente y continúan al minimizar la app o quitarla de recientes.
+11. **Temas persistentes:** Incluye Oscuro, Claro, Océano, Pizarra y Arena. El selector compacto del encabezado guarda la elección para el siguiente inicio y mantiene `#079C5E` como acento de marca.
 
 ---
 
@@ -32,8 +33,8 @@ Si abres la aplicación directamente haciendo doble clic en `DonLoader.exe`:
 - Permite ajustar la calidad de conversión de audio (128, 192, 256 o 320 kbps) si eliges MP3.
 - Para MP4/MKV, el botón **Analizar** consulta las resoluciones reales del enlace en segundo plano. La mayor queda seleccionada por defecto y podés elegir, por ejemplo, 720p sin descargar una resolución superior.
 - Permite examinar tu equipo para definir la carpeta de destino (por defecto, la carpeta de descargas del usuario).
-- Muestra la barra inferior con la versión cargada (ej: `DonLoader v1.3.2`).
-- Al hacer clic en Descargar, la URL se añade a la cola visual en tiempo real en la mitad inferior de la pantalla y el campo de texto se vacía inmediatamente, permitiendo seguir añadiendo más descargas al instante sin interrupciones.
+- Muestra la barra inferior con la versión cargada (ej: `DonLoader v1.3.3`).
+- Al abrir, solo muestra la URL y la carpeta persistida. Al completar el flujo aparece **Descargar**; la tarea comienza automáticamente, el formulario vuelve al inicio y la carpeta permanece para la siguiente descarga. La cola visual mantiene hasta tres tareas activas y arranca las siguientes automáticamente.
 
 ### B. Modo Directo (Integrado / Parámetros)
 Si ejecutas la aplicación pasando el argumento de la URL:

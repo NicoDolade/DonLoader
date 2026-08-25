@@ -2,6 +2,18 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
+## [Unreleased]
+
+## [1.3.3] - 2026-08-25
+
+### Añadido
+- **Temas persistentes:** Se agregaron los temas Oscuro, Claro, Océano, Pizarra y Arena. El selector vive como un control compacto en el encabezado y la elección se conserva al reiniciar la aplicación en escritorio y Android. Todos mantienen `#079C5E` como acento de marca.
+
+### Modificado
+- **Flujo progresivo de descarga:** Al abrir DonLoader solo se muestran la URL y la carpeta de destino. Al pegar una URL aparece el formato; MP3 revela su bitrate y MP4/MKV revelan Analizar y las calidades reales. La carpeta elegida se conserva y el formulario vuelve a su estado inicial después de iniciar una descarga.
+- **Acción principal:** El botón ahora se llama **Descargar** y solo aparece cuando la URL, el formato y la calidad requerida están listos. Al pulsarlo la tarea comienza automáticamente; las siguientes tareas siguen esperando en la cola interna de hasta tres descargas simultáneas.
+- **Animaciones ligeras:** Se agregaron transiciones breves de aparición/ocultamiento, selección de formato y hover, sin blur, sombras ni efectos pesados.
+
 ## [1.3.2] - 2026-08-25
 
 ### Añadido

@@ -14,6 +14,19 @@ import app
 
 
 class VideoQualityTests(unittest.TestCase):
+    def test_theme_preferences_round_trip(self):
+        original_path = app._theme_preferences_path
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                theme_path = os.path.join(temp_dir, "theme.json")
+                app._theme_preferences_path = lambda: theme_path
+                app.save_theme_key("ocean")
+                self.assertEqual(app.load_theme_key(), "ocean")
+                app.save_theme_key("unknown")
+                self.assertEqual(app.load_theme_key(), "dark")
+        finally:
+            app._theme_preferences_path = original_path
+
     def test_extracts_unique_video_heights_and_ignores_audio_only(self):
         info = {
             "formats": [

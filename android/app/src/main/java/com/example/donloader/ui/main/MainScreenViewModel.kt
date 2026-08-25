@@ -10,6 +10,8 @@ import com.example.donloader.data.DownloadTask
 import com.example.donloader.data.EngineStatus
 import com.example.donloader.data.VideoQualityState
 import com.example.donloader.service.DownloadService
+import com.example.donloader.theme.DonLoaderThemeOption
+import com.example.donloader.theme.DonLoaderThemeStore
 import com.example.donloader.updater.AppUpdater
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,11 +22,13 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
 
     private val downloadManager = DownloadManager.get(application)
     private val appUpdater = AppUpdater(application)
+    private val themeStore = DonLoaderThemeStore.get(application)
 
     val tasks: StateFlow<List<DownloadTask>> = downloadManager.tasks
     val engineStatus: StateFlow<EngineStatus> = downloadManager.engineStatus
     val videoQualityState: StateFlow<VideoQualityState> = downloadManager.videoQualityState
     val updateProgress: StateFlow<Float> = appUpdater.updateProgress
+    val selectedTheme: StateFlow<DonLoaderThemeOption> = themeStore.theme
 
     private val _updateInfo = MutableStateFlow<AppUpdater.UpdateInfo?>(null)
     val updateInfo: StateFlow<AppUpdater.UpdateInfo?> = _updateInfo.asStateFlow()
@@ -77,6 +81,10 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
 
     fun refreshEngine() {
         downloadManager.refreshEngine()
+    }
+
+    fun setTheme(theme: DonLoaderThemeOption) {
+        themeStore.setTheme(theme)
     }
 
     fun updateSelectedFolder(uri: String, displayName: String) {

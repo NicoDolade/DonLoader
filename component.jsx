@@ -1,18 +1,34 @@
 import React, { useState } from 'react';
 
-const COLORS = {
-  background: '#101216',
-  surface: '#181C22',
-  elevated: '#20262F',
-  border: '#2B333E',
-  text: '#F3F5F7',
-  muted: '#9AA4B2',
-  coral: '#079C5E',
-  info: '#7FA8FF',
-  success: '#43C995',
-  warning: '#F2B866',
-  error: '#079C5E',
+const THEMES = {
+  dark: {
+    label: 'Oscuro', background: '#101216', surface: '#181C22', elevated: '#20262F',
+    border: '#2B333E', text: '#F3F5F7', muted: '#9AA4B2', coral: '#079C5E',
+    info: '#7FA8FF', success: '#43C995', warning: '#F2B866', error: '#079C5E',
+  },
+  light: {
+    label: 'Claro', background: '#F4F7F5', surface: '#FFFFFF', elevated: '#E8F1EC',
+    border: '#C8D8CF', text: '#18211C', muted: '#5D6C63', coral: '#079C5E',
+    info: '#3167C7', success: '#087F4C', warning: '#AD6A00', error: '#079C5E',
+  },
+  ocean: {
+    label: 'Océano', background: '#0E1720', surface: '#152431', elevated: '#1E3442',
+    border: '#2D4A5B', text: '#EFF7FA', muted: '#9BB1BD', coral: '#079C5E',
+    info: '#7FA8FF', success: '#43C995', warning: '#F2B866', error: '#079C5E',
+  },
+  slate: {
+    label: 'Pizarra', background: '#17171F', surface: '#22232D', elevated: '#2D303C',
+    border: '#454856', text: '#F4F3F8', muted: '#B1B0BE', coral: '#079C5E',
+    info: '#B6A7FF', success: '#43C995', warning: '#F2B866', error: '#079C5E',
+  },
+  sand: {
+    label: 'Arena', background: '#F6F2EB', surface: '#FFFCF8', elevated: '#EFE7DB',
+    border: '#D8CABA', text: '#28251F', muted: '#756B5E', coral: '#079C5E',
+    info: '#3A65A8', success: '#187B50', warning: '#A26700', error: '#079C5E',
+  },
 };
+
+const COLORS = THEMES.dark;
 
 const AUDIO_QUALITIES = ['128', '192', '256', '320'];
 
@@ -23,11 +39,11 @@ function formatQuality(task) {
   return task.format + ' · ' + (task.videoQuality ? task.videoQuality + 'p' : 'Mejor disponible');
 }
 
-function statusColor(status) {
-  if (status === 'Completado') return COLORS.success;
-  if (status === 'Error') return COLORS.error;
-  if (status === 'Descargando...') return COLORS.coral;
-  return COLORS.muted;
+function statusColor(status, palette = COLORS) {
+  if (status === 'Completado') return palette.success;
+  if (status === 'Error') return palette.error;
+  if (status === 'Descargando...') return palette.coral;
+  return palette.muted;
 }
 
 export default function DonLoaderPreview({
@@ -38,16 +54,24 @@ export default function DonLoaderPreview({
   onQueue,
   onClearCompleted,
 }) {
+  const [themeKey, setThemeKey] = useState(() => {
+    if (typeof window === 'undefined') return 'dark';
+    return window.localStorage.getItem('donloader-theme') || 'dark';
+  });
+  const [themeMenuOpen, setThemeMenuOpen] = useState(false);
+  const COLORS = THEMES[themeKey] || THEMES.dark;
   const [url, setUrl] = useState('');
-  const [format, setFormat] = useState('MP4');
+  const [format, setFormat] = useState('');
   const [audioQuality, setAudioQuality] = useState('320');
   const [videoHeights, setVideoHeights] = useState(initialVideoHeights);
   const [videoQuality, setVideoQuality] = useState(null);
   const [analysisState, setAnalysisState] = useState('idle');
   const [analysisError, setAnalysisError] = useState('');
 
+  const hasUrl = url.trim().length > 0;
   const isVideo = format === 'MP4' || format === 'MKV';
-  const canQueue = url.trim() && (!isVideo || analysisState === 'ready');
+  const hasFormat = format === 'MP3' || isVideo;
+  const canDownload = hasUrl && hasFormat && (!isVideo || analysisState === 'ready');
 
   const updateUrl = (value) => {
     setUrl(value);
@@ -90,7 +114,7 @@ export default function DonLoaderPreview({
 
   const submit = (event) => {
     event.preventDefault();
-    if (!canQueue) return;
+    if (!canDownload) return;
     if (typeof onQueue === 'function') {
       onQueue({
         url: url.trim(),
@@ -100,6 +124,8 @@ export default function DonLoaderPreview({
       });
     }
     setUrl('');
+    setFormat('');
+    setAudioQuality('320');
     setVideoHeights([]);
     setVideoQuality(null);
     setAnalysisState('idle');
@@ -111,6 +137,14 @@ export default function DonLoaderPreview({
   };
 
   const completedCount = tasks.filter((task) => task.status === 'Completado').length;
+
+  const changeTheme = (nextTheme) => {
+    setThemeKey(nextTheme);
+    setThemeMenuOpen(false);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('donloader-theme', nextTheme);
+    }
+  };
 
   return (
     <main
@@ -133,11 +167,46 @@ export default function DonLoaderPreview({
               </p>
             </div>
           </div>
-          <div
-            className="rounded-full border px-3 py-1.5 text-xs font-semibold"
-            style={{ borderColor: COLORS.border, backgroundColor: COLORS.surface, color: COLORS.success }}
-          >
-            ● {engineStatus}
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <button
+                type="button"
+                aria-label="Cambiar tema"
+                onClick={() => setThemeMenuOpen((open) => !open)}
+                className="rounded-lg border px-2 py-1.5 text-sm font-bold transition-colors duration-150"
+                style={{ borderColor: COLORS.border, backgroundColor: COLORS.surface, color: COLORS.muted }}
+              >
+                ◐
+              </button>
+              {themeMenuOpen && (
+                <div
+                  className="absolute right-0 z-20 mt-2 w-36 rounded-lg border p-1"
+                  style={{ borderColor: COLORS.border, backgroundColor: COLORS.elevated }}
+                >
+                  {Object.entries(THEMES).map(([key, theme]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => changeTheme(key)}
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-xs transition-colors duration-150"
+                      style={{
+                        backgroundColor: key === themeKey ? COLORS.surface : 'transparent',
+                        color: COLORS.text,
+                      }}
+                    >
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: theme.coral }} />
+                      {theme.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div
+              className="rounded-full border px-3 py-1.5 text-xs font-semibold"
+              style={{ borderColor: COLORS.border, backgroundColor: COLORS.surface, color: COLORS.success }}
+            >
+              ● {engineStatus}
+            </div>
           </div>
         </header>
 
@@ -175,93 +244,99 @@ export default function DonLoaderPreview({
                 </div>
               </label>
 
-              <div>
-                <p className="mb-2 text-xs font-bold uppercase tracking-wide" style={{ color: COLORS.muted }}>
-                  Formato
-                </p>
-                <div className="flex gap-1 rounded-lg border p-1" style={{ borderColor: COLORS.border, backgroundColor: COLORS.elevated }}>
-                  {['MP3', 'MP4', 'MKV'].map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => updateFormat(value)}
-                      className="flex-1 rounded-md py-2 text-xs font-bold"
-                      style={{
-                        backgroundColor: format === value ? COLORS.coral : 'transparent',
-                        color: format === value ? COLORS.background : COLORS.text,
-                      }}
-                    >
-                      {value}
-                    </button>
-                  ))}
+              <div className="flex items-center justify-between rounded-lg px-3 py-2.5" style={{ backgroundColor: COLORS.elevated }}>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold" style={{ color: COLORS.muted }}>Carpeta de destino</p>
+                  <p className="truncate text-sm">Descargas del usuario</p>
                 </div>
+                <button type="button" className="text-xs font-bold" style={{ color: COLORS.coral }}>Cambiar</button>
               </div>
 
-              {format === 'MP3' ? (
-                <label className="text-xs font-bold uppercase tracking-wide" style={{ color: COLORS.muted }}>
-                  Calidad de audio
-                  <select
-                    value={audioQuality}
-                    onChange={(event) => setAudioQuality(event.target.value)}
-                    className="mt-2 w-full rounded-lg border px-3 py-2.5 text-sm normal-case outline-none"
-                    style={{ borderColor: COLORS.border, backgroundColor: COLORS.elevated, color: COLORS.text }}
-                  >
-                    {AUDIO_QUALITIES.map((value) => <option key={value} value={value}>{value} kbps</option>)}
-                  </select>
-                </label>
-              ) : (
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-bold uppercase tracking-wide" style={{ color: COLORS.muted }}>
-                      Calidad de video
-                    </p>
-                    <button
-                      type="button"
-                      onClick={analyze}
-                      disabled={analysisState === 'loading' || !url.trim()}
-                      className="rounded-lg border px-3 py-1.5 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-50"
-                      style={{ borderColor: COLORS.border, backgroundColor: COLORS.elevated, color: COLORS.text }}
-                    >
-                      {analysisState === 'loading' ? 'Analizando...' : 'Analizar'}
-                    </button>
-                  </div>
-                  <select
-                    value={videoQuality == null ? 'best' : String(videoQuality)}
-                    onChange={(event) => setVideoQuality(event.target.value === 'best' ? null : Number(event.target.value))}
-                    disabled={analysisState !== 'ready' || !videoHeights.length}
-                    className="mt-2 w-full rounded-lg border px-3 py-2.5 text-sm outline-none disabled:opacity-60"
-                    style={{ borderColor: COLORS.border, backgroundColor: COLORS.elevated, color: COLORS.text }}
-                  >
-                    {videoHeights.length
-                      ? videoHeights.map((height) => <option key={height} value={height}>{height}p</option>)
-                      : <option value="best">Mejor disponible</option>}
-                  </select>
-                  <p className="mt-2 text-xs" style={{ color: analysisState === 'error' ? COLORS.error : COLORS.muted }}>
-                    {analysisState === 'idle' && 'Analizá el enlace para consultar sus alturas reales.'}
-                    {analysisState === 'loading' && 'Consultando metadata sin descargar.'}
-                    {analysisState === 'ready' && (videoHeights.length ? 'La mayor calidad quedó seleccionada por defecto.' : 'El sitio no informó alturas; se usará la mejor disponible.')}
-                    {analysisState === 'error' && analysisError}
+              {hasUrl && (
+                <div className="overflow-hidden opacity-100 transition-all duration-200 ease-out">
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wide" style={{ color: COLORS.muted }}>
+                    Formato
                   </p>
+                  <div className="flex gap-1 rounded-lg border p-1" style={{ borderColor: COLORS.border, backgroundColor: COLORS.elevated }}>
+                    {['MP3', 'MP4', 'MKV'].map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => updateFormat(value)}
+                        className="flex-1 rounded-md py-2 text-xs font-bold transition-colors duration-150"
+                        style={{
+                          backgroundColor: format === value ? COLORS.coral : 'transparent',
+                          color: format === value ? COLORS.background : COLORS.text,
+                        }}
+                      >
+                        {value}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
-              <div className="mt-auto">
-                <div className="mb-3 flex items-center justify-between rounded-lg px-3 py-2.5" style={{ backgroundColor: COLORS.elevated }}>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold" style={{ color: COLORS.muted }}>Carpeta de destino</p>
-                    <p className="truncate text-sm">Descargas del usuario</p>
-                  </div>
-                  <button type="button" className="text-xs font-bold" style={{ color: COLORS.coral }}>Cambiar</button>
+              {hasFormat && (
+                <div className="overflow-hidden opacity-100 transition-all duration-200 ease-out">
+                  {format === 'MP3' ? (
+                    <label className="text-xs font-bold uppercase tracking-wide" style={{ color: COLORS.muted }}>
+                      Calidad de audio
+                      <select
+                        value={audioQuality}
+                        onChange={(event) => setAudioQuality(event.target.value)}
+                        className="mt-2 w-full rounded-lg border px-3 py-2.5 text-sm normal-case outline-none"
+                        style={{ borderColor: COLORS.border, backgroundColor: COLORS.elevated, color: COLORS.text }}
+                      >
+                        {AUDIO_QUALITIES.map((value) => <option key={value} value={value}>{value} kbps</option>)}
+                      </select>
+                    </label>
+                  ) : (
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-bold uppercase tracking-wide" style={{ color: COLORS.muted }}>
+                          Calidad de video
+                        </p>
+                        <button
+                          type="button"
+                          onClick={analyze}
+                          disabled={analysisState === 'loading' || !url.trim()}
+                          className="rounded-lg border px-3 py-1.5 text-xs font-bold transition-opacity duration-150 disabled:cursor-not-allowed disabled:opacity-50"
+                          style={{ borderColor: COLORS.border, backgroundColor: COLORS.elevated, color: COLORS.text }}
+                        >
+                          {analysisState === 'loading' ? 'Analizando...' : 'Analizar'}
+                        </button>
+                      </div>
+                      <select
+                        value={videoQuality == null ? 'best' : String(videoQuality)}
+                        onChange={(event) => setVideoQuality(event.target.value === 'best' ? null : Number(event.target.value))}
+                        disabled={analysisState !== 'ready' || !videoHeights.length}
+                        className="mt-2 w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-opacity duration-150 disabled:opacity-60"
+                        style={{ borderColor: COLORS.border, backgroundColor: COLORS.elevated, color: COLORS.text }}
+                      >
+                        {videoHeights.length
+                          ? videoHeights.map((height) => <option key={height} value={height}>{height}p</option>)
+                          : <option value="best">Mejor disponible</option>}
+                      </select>
+                      <p className="mt-2 text-xs" style={{ color: analysisState === 'error' ? COLORS.error : COLORS.muted }}>
+                        {analysisState === 'idle' && 'Analizá el enlace para consultar sus alturas reales.'}
+                        {analysisState === 'loading' && 'Consultando metadata sin descargar.'}
+                        {analysisState === 'ready' && (videoHeights.length ? 'La mayor calidad quedó seleccionada por defecto.' : 'El sitio no informó alturas; se usará la mejor disponible.')}
+                        {analysisState === 'error' && analysisError}
+                      </p>
+                    </div>
+                  )}
                 </div>
+              )}
+
+              {canDownload && (
                 <button
                   type="submit"
-                  disabled={!canQueue}
-                  className="w-full rounded-lg py-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-full rounded-lg py-3 text-sm font-bold transition-colors duration-150"
                   style={{ backgroundColor: COLORS.coral, color: COLORS.background }}
                 >
-                  Añadir a la cola
+                  Descargar
                 </button>
-              </div>
+              )}
             </form>
           </section>
 
@@ -299,7 +374,7 @@ export default function DonLoaderPreview({
                       <p className="truncate text-sm font-semibold">{task.title || task.url}</p>
                       <p className="mt-1 text-xs" style={{ color: COLORS.muted }}>{formatQuality(task)}</p>
                     </div>
-                    <span className="text-xs font-bold" style={{ color: statusColor(task.status) }}>{task.status}</span>
+                    <span className="text-xs font-bold" style={{ color: statusColor(task.status, COLORS) }}>{task.status}</span>
                   </div>
                   <div className="mt-3 h-1 overflow-hidden rounded-full" style={{ backgroundColor: COLORS.elevated }}>
                     <div

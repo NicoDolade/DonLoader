@@ -1,5 +1,7 @@
 ---
 theme:
+  options: "Oscuro / Claro / Océano / Pizarra / Arena"
+  persistence: "Preferencia local de usuario; se conserva al reiniciar"
   colors:
     background: "#101216"
     surface: "#181C22"
@@ -29,47 +31,66 @@ theme:
 
 # Sistema visual de DonLoader
 
-DonLoader usa una interfaz oscura, sobria y rápida de leer. El rediseño mejora la
-jerarquía y el estado de cada descarga sin añadir decoración que ralentice el
-renderizado o compita con el formulario.
+DonLoader usa una interfaz sobria y rápida de leer. El tema Oscuro es el
+predeterminado y se acompaña de cuatro variantes planas; todas conservan la
+jerarquía del formulario sin añadir decoración que ralentice el renderizado.
 
 ## Principios
 
 - Superficies planas, bordes de un píxel y radios contenidos.
 - Un solo acento expresivo: #079C5E para acciones y progreso activo.
+- Las cinco paletas conservan #079C5E como acento de marca; cambian fondos,
+  superficies, texto secundario y colores auxiliares para ofrecer variedad sin
+  alterar el significado de las acciones.
 - Verde, ámbar y #079C5E se reservan para éxito, proceso/advertencia y error.
 - Tipografía del sistema; no cargar fuentes, imágenes decorativas ni efectos pesados.
 - Animaciones breves solo para foco, hover y transición de estado.
 - Nunca mostrar una calidad de video fija como si fuera real: MP4/MKV muestran
   resoluciones después de Analizar, usando únicamente la metadata recibida.
 - Un estado vacío debe ser honesto: no incluir tareas, tamaños o velocidades simuladas.
+- El cambio de tema se ofrece mediante un control pequeño de paleta en el
+  encabezado; no se agrega una pantalla de ajustes ni un botón flotante.
 
 ## Composición compartida
 
 El encabezado muestra la marca DonLoader y un indicador compacto del motor
-yt-dlp. La configuración agrupa URL, formato, calidad y carpeta de destino.
+yt-dlp. La configuración empieza con URL y carpeta de destino; el resto de los
+controles aparece de forma progresiva cuando hay una URL y un formato elegido.
 La cola muestra formato, calidad elegida, estado, progreso, velocidad y ETA.
 
 El formato MP3 revela solo bitrate de audio. MP4 y MKV revelan Analizar y, al
 terminar el análisis, un selector con las alturas disponibles ordenadas de mayor
-a menor. Si no hay alturas, se ofrece Mejor disponible.
+a menor. Si no hay alturas, se ofrece Mejor disponible. La acción **Descargar**
+solo aparece cuando toda la selección está lista; después de iniciar la tarea,
+URL, formato y calidad vuelven a ocultarse, mientras la carpeta permanece.
+
+Las animaciones se limitan a transiciones de entrada/salida de 120–180 ms,
+selección de formato y color de hover. No se animan los datos de la cola ni se
+agregan efectos que consuman recursos durante la descarga.
 
 ## Escritorio
 
 - Ventana inicial aproximada de 960x640, redimensionable, mínimo 820x560.
 - Dos paneles: configuración a la izquierda y cola a la derecha.
 - El URL tiene Pegar, validación inline y Analizar solo para video.
-- La acción principal permanece visible al pie del panel izquierdo.
+- La acción **Descargar** aparece al pie del panel izquierdo solo cuando la
+  selección está completa y se oculta después de iniciar la tarea.
 - La cola usa tarjetas compactas y un botón Limpiar completadas.
 - El modo directo oculta la configuración y conserva la cola, el límite de tres
   descargas y el cierre automático.
+- El selector de tema usa un menú contextual compacto. Guarda la opción en
+  `%APPDATA%/DonLoader/theme.json` y recolorea la ventana actual sin reiniciar.
 
 ## Android
 
-- Tema Material oscuro fijo; no se usan colores dinámicos del sistema.
+- Tema Material configurable con cinco paletas fijas; no se usan colores
+  dinámicos del sistema. La opción se abre desde un icono discreto del encabezado
+  y se guarda en `SharedPreferences`.
 - Una sola LazyColumn, con ancho máximo cómodo en pantallas grandes.
-- El flujo es URL → formato → Analizar → calidad real → añadir a cola.
-- El botón de descarga se deshabilita durante el análisis o la actualización del motor.
+- El flujo es URL → formato → calidad de audio o Analizar → calidad real → Descargar.
+- El botón **Descargar** no aparece hasta completar la selección; durante la
+  actualización del motor puede aparecer deshabilitado para conservar el bloqueo
+  de seguridad existente.
 - Las tarjetas conservan miniaturas vía Coil y acciones de cancelar/reintentar.
 - La carpeta de destino sigue siendo una fila secundaria y usa SAF.
 

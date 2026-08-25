@@ -29,7 +29,7 @@ check_and_load_yt_dlp_update()
 import yt_dlp
 
 # Versión de la aplicación (SemVer)
-APP_VERSION = "v1.3.2"
+APP_VERSION = "v1.3.3"
 
 # Identidad visual DonLoader: oscura, sobria y con un único acento expresivo.
 BG_COLOR = "#101216"
@@ -43,6 +43,142 @@ ACCENT_BLUE = "#7FA8FF"       # Estado informativo del motor
 ACCENT_GREEN = "#43C995"      # Éxito
 ACCENT_RED = "#079C5E"        # Error
 ACCENT_AMBER = "#F2B866"      # Actualización / advertencia
+
+THEME_DEFINITIONS = {
+    "dark": {
+        "label": "Oscuro",
+        "background": "#101216",
+        "surface": "#181C22",
+        "elevated": "#20262F",
+        "border": "#2B333E",
+        "text": "#F3F5F7",
+        "muted": "#9AA4B2",
+        "primary": "#079C5E",
+        "info": "#7FA8FF",
+        "success": "#43C995",
+        "warning": "#F2B866",
+        "error": "#079C5E",
+    },
+    "light": {
+        "label": "Claro",
+        "background": "#F4F7F5",
+        "surface": "#FFFFFF",
+        "elevated": "#E8F1EC",
+        "border": "#C8D8CF",
+        "text": "#18211C",
+        "muted": "#5D6C63",
+        "primary": "#079C5E",
+        "info": "#3167C7",
+        "success": "#087F4C",
+        "warning": "#AD6A00",
+        "error": "#079C5E",
+    },
+    "ocean": {
+        "label": "Océano",
+        "background": "#0E1720",
+        "surface": "#152431",
+        "elevated": "#1E3442",
+        "border": "#2D4A5B",
+        "text": "#EFF7FA",
+        "muted": "#9BB1BD",
+        "primary": "#079C5E",
+        "info": "#7FA8FF",
+        "success": "#43C995",
+        "warning": "#F2B866",
+        "error": "#079C5E",
+    },
+    "slate": {
+        "label": "Pizarra",
+        "background": "#17171F",
+        "surface": "#22232D",
+        "elevated": "#2D303C",
+        "border": "#454856",
+        "text": "#F4F3F8",
+        "muted": "#B1B0BE",
+        "primary": "#079C5E",
+        "info": "#B6A7FF",
+        "success": "#43C995",
+        "warning": "#F2B866",
+        "error": "#079C5E",
+    },
+    "sand": {
+        "label": "Arena",
+        "background": "#F6F2EB",
+        "surface": "#FFFCF8",
+        "elevated": "#EFE7DB",
+        "border": "#D8CABA",
+        "text": "#28251F",
+        "muted": "#756B5E",
+        "primary": "#079C5E",
+        "info": "#3A65A8",
+        "success": "#187B50",
+        "warning": "#A26700",
+        "error": "#079C5E",
+    },
+}
+DEFAULT_THEME_KEY = "dark"
+
+
+def _theme_preferences_path():
+    if sys.platform == "win32":
+        base_dir = os.path.join(os.environ.get("APPDATA", os.path.expanduser("~")), "DonLoader")
+    else:
+        base_dir = os.path.join(os.path.expanduser("~"), ".donloader")
+    return os.path.join(base_dir, "theme.json")
+
+
+def load_theme_key():
+    try:
+        with open(_theme_preferences_path(), "r", encoding="utf-8") as preferences_file:
+            theme_key = json.load(preferences_file).get("theme")
+        return theme_key if theme_key in THEME_DEFINITIONS else DEFAULT_THEME_KEY
+    except (OSError, ValueError, AttributeError):
+        return DEFAULT_THEME_KEY
+
+
+def save_theme_key(theme_key):
+    try:
+        preferences_path = _theme_preferences_path()
+        os.makedirs(os.path.dirname(preferences_path), exist_ok=True)
+        with open(preferences_path, "w", encoding="utf-8") as preferences_file:
+            json.dump({"theme": theme_key}, preferences_file)
+    except OSError:
+        pass
+
+
+def apply_theme_palette(theme_key):
+    """Aplica una paleta a los colores globales usados por Tkinter."""
+    palette = THEME_DEFINITIONS.get(theme_key, THEME_DEFINITIONS[DEFAULT_THEME_KEY])
+    global BG_COLOR, SURFACE_COLOR, SURFACE_ELEVATED, BORDER_COLOR
+    global TEXT_PRIMARY, TEXT_SECONDARY, ACCENT_PRIMARY, ACCENT_BLUE
+    global ACCENT_GREEN, ACCENT_RED, ACCENT_AMBER
+    BG_COLOR = palette["background"]
+    SURFACE_COLOR = palette["surface"]
+    SURFACE_ELEVATED = palette["elevated"]
+    BORDER_COLOR = palette["border"]
+    TEXT_PRIMARY = palette["text"]
+    TEXT_SECONDARY = palette["muted"]
+    ACCENT_PRIMARY = palette["primary"]
+    ACCENT_BLUE = palette["info"]
+    ACCENT_GREEN = palette["success"]
+    ACCENT_RED = palette["error"]
+    ACCENT_AMBER = palette["warning"]
+
+
+def theme_palette_snapshot():
+    return {
+        "background": BG_COLOR,
+        "surface": SURFACE_COLOR,
+        "elevated": SURFACE_ELEVATED,
+        "border": BORDER_COLOR,
+        "text": TEXT_PRIMARY,
+        "muted": TEXT_SECONDARY,
+        "primary": ACCENT_PRIMARY,
+        "info": ACCENT_BLUE,
+        "success": ACCENT_GREEN,
+        "warning": ACCENT_AMBER,
+        "error": ACCENT_RED,
+    }
 
 
 def extract_video_heights(info):
@@ -227,14 +363,16 @@ class ModernButton(tk.Button):
                 self.hover_bg = "#9DBBFF"
             elif self.normal_bg == ACCENT_GREEN:
                 self.hover_bg = "#66DDAA"
-            elif self.normal_bg == ACCENT_RED:
-                self.hover_bg = "#FF8A8A"
             elif self.normal_bg == SURFACE_COLOR:
                 self.hover_bg = BORDER_COLOR
             elif self.normal_bg == ACCENT_PRIMARY:
-                self.hover_bg = "#FF8477"
+                self.hover_bg = "#0BB86F"
+            elif self.normal_bg == ACCENT_RED:
+                self.hover_bg = "#0BB86F"
             else:
                 self.hover_bg = self.normal_bg
+
+        self._background_animation_id = None
         
         super().__init__(master, relief="flat", activebackground=self.hover_bg, 
                          activeforeground=self.normal_fg, cursor="hand2", **kwargs)
@@ -242,10 +380,44 @@ class ModernButton(tk.Button):
         self.bind("<Leave>", self.on_leave)
         
     def on_enter(self, e):
-        self.config(bg=self.hover_bg)
-        
+        self._animate_background(self.hover_bg)
+
     def on_leave(self, e):
-        self.config(bg=self.normal_bg)
+        self._animate_background(self.normal_bg)
+
+    def _animate_background(self, target):
+        """Transición breve de color para no distraer durante la descarga."""
+        if self._background_animation_id is not None:
+            try:
+                self.after_cancel(self._background_animation_id)
+            except tk.TclError:
+                pass
+            self._background_animation_id = None
+
+        start = self.cget("bg")
+        try:
+            start_rgb = tuple(int(start[index:index + 2], 16) for index in (1, 3, 5))
+            target_rgb = tuple(int(target[index:index + 2], 16) for index in (1, 3, 5))
+        except (TypeError, ValueError):
+            self.config(bg=target)
+            return
+
+        def step(current):
+            progress = current / 4
+            color = "#" + "".join(
+                f"{round(start_rgb[index] + (target_rgb[index] - start_rgb[index]) * progress):02X}"
+                for index in range(3)
+            )
+            try:
+                self.config(bg=color)
+            except tk.TclError:
+                return
+            if current < 4:
+                self._background_animation_id = self.after(18, lambda: step(current + 1))
+            else:
+                self._background_animation_id = None
+
+        step(1)
 
 class ScrollableFrame(tk.Frame):
     """Contenedor scrollable vertical para las tareas de descarga."""
@@ -519,6 +691,9 @@ class DonLoaderApp:
     def __init__(self, root, url=None, media_format="mp3", output_dir=None,
                  quality="192", direct_mode=False, video_quality=None):
         self.root = root
+        self.theme_key = load_theme_key()
+        apply_theme_palette(self.theme_key)
+        self.update_status_message = "Buscando motor..."
         self.root.title("DonLoader")
         self.root.geometry("960x640")
         self.root.minsize(820, 560)
@@ -579,8 +754,21 @@ class DonLoaderApp:
             anchor="w",
         ).grid(row=1, column=1, sticky="w")
 
+        self.theme_button = ModernButton(
+            self.header_frame,
+            text="◐",
+            font=("Segoe UI Symbol", 11, "bold"),
+            width=2,
+            bg=SURFACE_COLOR,
+            hover_bg=SURFACE_ELEVATED,
+            fg=TEXT_SECONDARY,
+            command=self.open_theme_menu,
+        )
+        self.theme_button.grid(row=0, column=2, rowspan=2, padx=(0, 8), sticky="e")
+
         status_pill = tk.Frame(self.header_frame, bg=SURFACE_COLOR, padx=10, pady=6)
-        status_pill.grid(row=0, column=2, rowspan=2, sticky="e")
+        status_pill.grid(row=0, column=3, rowspan=2, sticky="e")
+        self.status_pill = status_pill
         self.engine_status_dot = tk.Label(
             status_pill, text="●", font=("Segoe UI", 8), fg=ACCENT_AMBER, bg=SURFACE_COLOR
         )
@@ -712,8 +900,118 @@ class DonLoaderApp:
             except Exception:
                 pass
 
+    def open_theme_menu(self):
+        """Abre el selector compacto de temas desde el encabezado."""
+        if getattr(self, "theme_menu", None) is not None:
+            try:
+                self.theme_menu.destroy()
+            except tk.TclError:
+                pass
+
+        self.theme_menu = tk.Menu(
+            self.root,
+            tearoff=False,
+            bg=SURFACE_ELEVATED,
+            fg=TEXT_PRIMARY,
+            activebackground=ACCENT_PRIMARY,
+            activeforeground=BG_COLOR,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI", 9),
+        )
+        for theme_key, definition in THEME_DEFINITIONS.items():
+            prefix = "✓ " if theme_key == self.theme_key else "   "
+            self.theme_menu.add_command(
+                label=prefix + definition["label"],
+                command=lambda selected=theme_key: self.select_theme(selected),
+            )
+
+        x = self.theme_button.winfo_rootx()
+        y = self.theme_button.winfo_rooty() + self.theme_button.winfo_height()
+        self.theme_menu.tk_popup(x, y)
+
+    def _recolor_widget_tree(self, widget, old_palette):
+        new_palette = theme_palette_snapshot()
+        color_map = {
+            old_palette[key].lower(): new_palette[key]
+            for key in old_palette
+        }
+
+        def map_color(value):
+            if not isinstance(value, str):
+                return value
+            return color_map.get(value.lower(), value)
+
+        def recolor(current):
+            for option in (
+                "bg", "fg", "highlightbackground", "highlightcolor",
+                "insertbackground", "activebackground", "activeforeground",
+            ):
+                try:
+                    current_value = current.cget(option)
+                    mapped_value = map_color(current_value)
+                    if mapped_value != current_value:
+                        current.configure(**{option: mapped_value})
+                except (tk.TclError, TypeError):
+                    pass
+
+            if isinstance(current, ModernButton):
+                current.normal_bg = map_color(current.normal_bg)
+                current.hover_bg = map_color(current.hover_bg)
+                current.normal_fg = map_color(current.normal_fg)
+                try:
+                    current.configure(
+                        activebackground=current.hover_bg,
+                        activeforeground=current.normal_fg,
+                    )
+                except tk.TclError:
+                    pass
+
+            if isinstance(current, tk.Canvas):
+                for item_id in current.find_all():
+                    for option in ("fill", "outline"):
+                        try:
+                            current_value = current.itemcget(item_id, option)
+                            mapped_value = map_color(current_value)
+                            if mapped_value != current_value:
+                                current.itemconfigure(item_id, **{option: mapped_value})
+                        except tk.TclError:
+                            pass
+
+            try:
+                menu = current["menu"]
+                menu.configure(
+                    bg=SURFACE_ELEVATED,
+                    fg=TEXT_PRIMARY,
+                    activebackground=ACCENT_PRIMARY,
+                    activeforeground=BG_COLOR,
+                )
+            except (tk.TclError, KeyError, TypeError):
+                pass
+
+            for child in current.winfo_children():
+                recolor(child)
+
+        recolor(widget)
+
+    def select_theme(self, theme_key):
+        if theme_key not in THEME_DEFINITIONS or theme_key == self.theme_key:
+            if getattr(self, "theme_menu", None) is not None:
+                self.theme_menu.unpost()
+            return
+
+        old_palette = theme_palette_snapshot()
+        self.theme_key = theme_key
+        save_theme_key(theme_key)
+        apply_theme_palette(theme_key)
+        self._recolor_widget_tree(self.root, old_palette)
+        if getattr(self, "theme_menu", None) is not None:
+            self.theme_menu.unpost()
+        self.set_update_status(self.update_status_message)
+
     def set_update_status(self, message):
         """Actualiza de forma segura el estado del motor desde hilos secundarios."""
+        self.update_status_message = message
         def update_label():
             if message in ("Al día", "Sin actualizaciones"):
                 color = ACCENT_GREEN
@@ -843,13 +1141,14 @@ class DonLoaderApp:
 
         form = tk.Frame(self.input_frame, bg=SURFACE_COLOR)
         form.pack(fill="both", expand=True, padx=18, pady=18)
+        self.form = form
 
         tk.Label(
             form, text="Nueva descarga", font=("Segoe UI", 15, "bold"),
             fg=TEXT_PRIMARY, bg=SURFACE_COLOR, anchor="w"
         ).pack(anchor="w")
         tk.Label(
-            form, text="Elegí el formato y ajustá la calidad antes de encolar.",
+            form, text="Pegá un enlace y completá las opciones que aparecen.",
             font=("Segoe UI", 8), fg=TEXT_SECONDARY, bg=SURFACE_COLOR, anchor="w"
         ).pack(anchor="w", pady=(3, 20))
 
@@ -880,12 +1179,6 @@ class DonLoaderApp:
             command=self.paste_url,
         )
         self.paste_btn.pack(side="left", padx=(7, 0), ipady=4)
-        self.analyze_btn = ModernButton(
-            url_row, text="Analizar", font=("Segoe UI", 8, "bold"),
-            bg=SURFACE_ELEVATED, hover_bg=BORDER_COLOR, fg=TEXT_PRIMARY,
-            command=self.analyze_url,
-        )
-        self.analyze_btn.pack(side="left", padx=(7, 0), ipady=4)
 
         self.url_error_label = tk.Label(
             form, text="", font=("Segoe UI", 8), fg=ACCENT_RED,
@@ -893,12 +1186,34 @@ class DonLoaderApp:
         )
         self.url_error_label.pack(fill="x", pady=(5, 0))
 
+        folder_label = tk.Label(
+            form, text="CARPETA DE DESTINO", font=("Segoe UI", 8, "bold"),
+            fg=TEXT_SECONDARY, bg=SURFACE_COLOR, anchor="w"
+        )
+        folder_label.pack(anchor="w", pady=(20, 5))
+        folder_row = tk.Frame(form, bg=SURFACE_COLOR)
+        folder_row.pack(fill="x")
+        self.folder_entry = tk.Entry(
+            folder_row, font=("Segoe UI", 8), bg=SURFACE_ELEVATED,
+            fg=TEXT_SECONDARY, relief="flat", highlightthickness=1,
+            highlightbackground=BORDER_COLOR, highlightcolor=BORDER_COLOR,
+        )
+        self.folder_entry.pack(side="left", fill="x", expand=True, ipady=6)
+        self.folder_entry.insert(0, self.output_dir)
+        self.folder_entry.config(state="readonly")
+        ModernButton(
+            folder_row, text="Cambiar", font=("Segoe UI", 8, "bold"),
+            bg=SURFACE_ELEVATED, hover_bg=BORDER_COLOR, fg=TEXT_PRIMARY,
+            command=self.browse_folder,
+        ).pack(side="left", padx=(7, 0), ipady=4)
+
+        self.format_section = tk.Frame(form, bg=SURFACE_COLOR)
         tk.Label(
-            form, text="FORMATO", font=("Segoe UI", 8, "bold"),
+            self.format_section, text="FORMATO", font=("Segoe UI", 8, "bold"),
             fg=TEXT_SECONDARY, bg=SURFACE_COLOR, anchor="w"
         ).pack(anchor="w", pady=(20, 5))
-        self.fmt_var = tk.StringVar(value=self.media_format)
-        format_row = tk.Frame(form, bg=SURFACE_COLOR)
+        self.fmt_var = tk.StringVar(value=self.media_format if self.direct_mode else "")
+        format_row = tk.Frame(self.format_section, bg=SURFACE_COLOR)
         format_row.pack(fill="x")
         self.format_buttons = {}
         for fmt in ("mp3", "mp4", "mkv"):
@@ -929,10 +1244,18 @@ class DonLoaderApp:
         self.q_menu.pack(anchor="w", fill="x")
 
         self.video_quality_frame = tk.Frame(form, bg=SURFACE_COLOR)
+        video_quality_header = tk.Frame(self.video_quality_frame, bg=SURFACE_COLOR)
+        video_quality_header.pack(fill="x", pady=(18, 5))
         tk.Label(
-            self.video_quality_frame, text="CALIDAD DE VIDEO", font=("Segoe UI", 8, "bold"),
+            video_quality_header, text="CALIDAD DE VIDEO", font=("Segoe UI", 8, "bold"),
             fg=TEXT_SECONDARY, bg=SURFACE_COLOR, anchor="w"
-        ).pack(anchor="w", pady=(18, 5))
+        ).pack(side="left")
+        self.analyze_btn = ModernButton(
+            video_quality_header, text="Analizar", font=("Segoe UI", 8, "bold"),
+            bg=SURFACE_ELEVATED, hover_bg=BORDER_COLOR, fg=TEXT_PRIMARY,
+            command=self.analyze_url,
+        )
+        self.analyze_btn.pack(side="right", ipady=3)
         self.video_quality_var = tk.StringVar(value="")
         self.video_quality_menu = tk.OptionMenu(
             self.video_quality_frame, self.video_quality_var, "Analizá un enlace"
@@ -953,35 +1276,15 @@ class DonLoaderApp:
         )
         self.video_quality_status.pack(fill="x", pady=(5, 0))
 
-        folder_label = tk.Label(
-            form, text="CARPETA DE DESTINO", font=("Segoe UI", 8, "bold"),
-            fg=TEXT_SECONDARY, bg=SURFACE_COLOR, anchor="w"
-        )
-        folder_label.pack(anchor="w", pady=(20, 5))
-        folder_row = tk.Frame(form, bg=SURFACE_COLOR)
-        folder_row.pack(fill="x")
-        self.folder_entry = tk.Entry(
-            folder_row, font=("Segoe UI", 8), bg=SURFACE_ELEVATED,
-            fg=TEXT_SECONDARY, relief="flat", highlightthickness=1,
-            highlightbackground=BORDER_COLOR, highlightcolor=BORDER_COLOR,
-        )
-        self.folder_entry.pack(side="left", fill="x", expand=True, ipady=6)
-        self.folder_entry.insert(0, self.output_dir)
-        self.folder_entry.config(state="readonly")
-        ModernButton(
-            folder_row, text="Cambiar", font=("Segoe UI", 8, "bold"),
-            bg=SURFACE_ELEVATED, hover_bg=BORDER_COLOR, fg=TEXT_PRIMARY,
-            command=self.browse_folder,
-        ).pack(side="left", padx=(7, 0), ipady=4)
-
         self.download_btn = ModernButton(
-            form, text="Añadir a la cola", font=("Segoe UI", 10, "bold"),
-            bg=ACCENT_PRIMARY, hover_bg="#FF8477", fg=BG_COLOR,
+            form, text="Descargar", font=("Segoe UI", 10, "bold"),
+            bg=ACCENT_PRIMARY, hover_bg="#0BB86F", fg=BG_COLOR,
             command=self.on_start_click,
         )
-        self.download_btn.pack(fill="x", side="bottom", ipady=8, pady=(20, 0))
-
-        self.set_format(self.media_format)
+        if self.direct_mode:
+            self.set_format(self.media_format)
+        else:
+            self._update_control_state()
 
     def paste_url(self):
         try:
@@ -1012,14 +1315,9 @@ class DonLoaderApp:
             button.normal_bg = ACCENT_PRIMARY if selected else SURFACE_ELEVATED
 
         if media_format == "mp3":
-            self.video_quality_frame.pack_forget()
-            self.audio_quality_frame.pack(fill="x")
             self._invalidate_video_analysis()
-        else:
-            self.audio_quality_frame.pack_forget()
-            self.video_quality_frame.pack(fill="x")
-            if self.analyzed_url != self.url_entry.get().strip():
-                self._invalidate_video_analysis()
+        elif self.analyzed_url != self.url_entry.get().strip():
+            self._invalidate_video_analysis()
         self._update_control_state()
 
     def toggle_quality_menu(self):
@@ -1040,26 +1338,72 @@ class DonLoaderApp:
         self.video_quality_status.config(text="Pulsá Analizar para consultar las resoluciones.", fg=TEXT_SECONDARY)
         self.video_quality_menu.config(state=tk.DISABLED)
 
+    def _set_section_visible(self, widget, visible, **pack_options):
+        """Muestra u oculta una sección y marca su aparición con un pulso breve."""
+        is_visible = bool(widget.winfo_manager())
+        if visible and not is_visible:
+            widget.pack(**pack_options)
+            try:
+                widget.config(highlightthickness=1, highlightbackground=ACCENT_PRIMARY)
+                self.root.after(
+                    180,
+                    lambda: widget.winfo_exists() and widget.config(
+                        highlightthickness=0, highlightbackground=SURFACE_COLOR
+                    ),
+                )
+            except tk.TclError:
+                pass
+        elif not visible and is_visible:
+            widget.pack_forget()
+
     def _update_control_state(self):
         if not hasattr(self, "url_entry"):
             return
         url = self.url_entry.get().strip()
         is_video = self.fmt_var.get() in ("mp4", "mkv")
+        has_format = self.fmt_var.get() in ("mp3", "mp4", "mkv")
         analyzed = self.analysis_state == "ready" and self.analyzed_url == url
         analyzing = self.analysis_state == "loading"
+        show_progressive_form = bool(url) or self.direct_mode
 
-        if is_video:
+        self._set_section_visible(
+            self.format_section,
+            show_progressive_form,
+            fill="x",
+        )
+        self._set_section_visible(
+            self.audio_quality_frame,
+            show_progressive_form and has_format and not is_video,
+            fill="x",
+        )
+        self._set_section_visible(
+            self.video_quality_frame,
+            show_progressive_form and has_format and is_video,
+            fill="x",
+        )
+
+        if is_video and show_progressive_form:
             self.analyze_btn.config(
                 state=tk.DISABLED if analyzing or not url else tk.NORMAL,
                 text="Analizando..." if analyzing else "Analizar",
             )
             self.video_quality_menu.config(state=tk.NORMAL if analyzed else tk.DISABLED)
-            can_download = bool(url) and (self.direct_mode or analyzed)
         else:
-            self.analyze_btn.config(state=tk.DISABLED, text="Solo video")
-            can_download = bool(url)
+            self.analyze_btn.config(state=tk.DISABLED, text="Analizar")
+            self.video_quality_menu.config(state=tk.DISABLED)
 
+        can_download = bool(url) and has_format and (
+            self.direct_mode or not is_video or analyzed
+        )
         self.download_btn.config(state=tk.NORMAL if can_download else tk.DISABLED)
+        self._set_section_visible(
+            self.download_btn,
+            can_download,
+            fill="x",
+            side="bottom",
+            ipady=8,
+            pady=(20, 0),
+        )
 
     def analyze_url(self):
         url = self.url_entry.get().strip()
@@ -1146,6 +1490,18 @@ class DonLoaderApp:
         except ValueError:
             return None
 
+    def _reset_input_form(self):
+        """Vuelve al estado inicial sin tocar la carpeta de destino persistida."""
+        self.url_entry.delete(0, tk.END)
+        self._invalidate_video_analysis()
+        self.fmt_var.set("")
+        self.q_var.set(self.quality)
+        for button in self.format_buttons.values():
+            button.config(bg=SURFACE_ELEVATED, fg=TEXT_PRIMARY)
+            button.normal_bg = SURFACE_ELEVATED
+        self.url_error_label.config(text="")
+        self._update_control_state()
+
     def browse_folder(self):
         """Abre un diálogo interactivo para elegir la carpeta de destino."""
         selected = filedialog.askdirectory(initialdir=self.output_dir, title="Seleccionar Carpeta de Destino")
@@ -1157,7 +1513,7 @@ class DonLoaderApp:
             self.folder_entry.config(state="readonly")
 
     def on_start_click(self):
-        """Valida e inicia el proceso de descarga, agregándolo a la cola."""
+        """Valida e inicia la descarga; las tareas siguientes esperan en la cola."""
         url = self.url_entry.get().strip()
         if not url:
             self.url_error_label.config(text="Pegá una URL válida para continuar.")
@@ -1183,9 +1539,8 @@ class DonLoaderApp:
             video_quality=selected_video_quality if media_format in ("mp4", "mkv") else None,
         )
         self.tasks.append(task)
-        self.url_entry.delete(0, tk.END)
-        self._invalidate_video_analysis()
-        self.url_error_label.config(text="")
+        if not self.direct_mode:
+            self._reset_input_form()
         self.update_queue_state()
         self.process_queue()
 
