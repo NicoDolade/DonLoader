@@ -28,8 +28,12 @@ class DownloadManager private constructor(private val context: Context) {
     private val _engineStatus = MutableStateFlow<EngineStatus>(EngineStatus.Unknown)
     val engineStatus: StateFlow<EngineStatus> = _engineStatus.asStateFlow()
 
+    private val _videoQualityState = MutableStateFlow<VideoQualityState>(VideoQualityState.Idle)
+    val videoQualityState: StateFlow<VideoQualityState> = _videoQualityState.asStateFlow()
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val downloadSemaphore = Semaphore(3)
+    private var analysisJob: Job? = null
 
     // URI de la carpeta seleccionada por el usuario (SAF). Si es nulo o vacío, descarga en el almacenamiento privado de la app.
     var selectedFolderUri: String? = null
@@ -66,13 +70,14 @@ class DownloadManager private constructor(private val context: Context) {
         refreshEngine()
     }
 
-    fun addDownload(url: String, format: String, quality: String) {
+    fun addDownload(url: String, format: String, quality: String, videoQuality: Int? = null) {
         val taskId = UUID.randomUUID().toString()
         val newTask = DownloadTask(
             id = taskId,
             url = url,
             format = format,
             quality = quality,
+            videoQuality = videoQuality,
             status = DownloadStatus.EN_COLA
         )
 
@@ -82,6 +87,45 @@ class DownloadManager private constructor(private val context: Context) {
         scope.launch(Dispatchers.IO) {
             processDownload(taskId)
         }
+    }
+
+    /** Consulta metadata sin descargar y publica las alturas de video disponibles. */
+    fun analyzeVideoQualities(url: String) {
+        val cleanUrl = url.trim()
+        analysisJob?.cancel()
+        if (cleanUrl.isBlank()) {
+            _videoQualityState.value = VideoQualityState.Idle
+            return
+        }
+
+        _videoQualityState.value = VideoQualityState.Loading(cleanUrl)
+        analysisJob = scope.launch(Dispatchers.IO) {
+            try {
+                val request = YoutubeDLRequest(cleanUrl)
+                request.addOption("--no-playlist")
+                val info = YoutubeDL.getInstance().getInfo(request)
+                val heights = normalizeVideoHeights(info.formats
+                    ?.asSequence()
+                    ?.filter { format -> !format.vcodec.equals("none", ignoreCase = true) }
+                    ?.map { format -> format.height }
+                    ?.toList()
+                    ?: emptyList())
+
+                _videoQualityState.value = VideoQualityState.Ready(cleanUrl, heights)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Log.e("DownloadManager", "Video quality analysis failed", error)
+                _videoQualityState.value = VideoQualityState.Error(
+                    cleanUrl,
+                    cleanErrorMessage(error.localizedMessage)
+                )
+            }
+        }
+    }
+
+    fun clearCompleted() {
+        _tasks.value = _tasks.value.filterNot { it.status == DownloadStatus.COMPLETADO }
     }
 
     /**
@@ -201,7 +245,7 @@ class DownloadManager private constructor(private val context: Context) {
                     val audioQuality = if (task.quality.endsWith("k")) task.quality.removeSuffix("k") else task.quality
                     request.addOption("--audio-quality", audioQuality.ifBlank { "320" })
                 } else {
-                    request.addOption("-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best")
+                    request.addOption("-f", buildVideoFormatSelector(task.format, task.videoQuality))
                     if (task.format == "MKV") {
                         request.addOption("--merge-output-format", "mkv")
                     } else {
@@ -354,6 +398,30 @@ class DownloadManager private constructor(private val context: Context) {
 
     private fun sanitizeFilename(name: String): String {
         return name.replace(Regex("[\\\\/*?:\"<>|]"), "").trim()
+    }
+
+    /**
+     * Mantiene la resolución elegida como techo. La variante sin altura conserva el
+     * comportamiento anterior y toma la mejor disponible.
+     */
+    private fun buildVideoFormatSelector(format: String, videoQuality: Int?): String {
+        if (videoQuality == null) {
+            return if (format == "MP4") {
+                "bv*[ext=mp4]+ba[ext=m4a]/bv*+ba/b"
+            } else {
+                "bv*+ba/b"
+            }
+        }
+
+        val height = videoQuality.coerceAtLeast(1)
+        return if (format == "MP4") {
+            "bv*[height<=$height][ext=mp4]+ba[ext=m4a]" +
+                "/bv*[height<=$height]+ba/b[height<=$height]" +
+                "/wv*[height<=$height]+ba/w[height<=$height]"
+        } else {
+            "bv*[height<=$height]+ba/b[height<=$height]" +
+                "/wv*[height<=$height]+ba/w[height<=$height]"
+        }
     }
 
     private fun parseSpeedFromLine(line: String): String {

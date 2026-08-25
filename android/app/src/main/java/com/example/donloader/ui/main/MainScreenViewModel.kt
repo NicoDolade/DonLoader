@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.donloader.data.DownloadManager
 import com.example.donloader.data.DownloadTask
 import com.example.donloader.data.EngineStatus
+import com.example.donloader.data.VideoQualityState
 import com.example.donloader.service.DownloadService
 import com.example.donloader.updater.AppUpdater
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,6 +23,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
 
     val tasks: StateFlow<List<DownloadTask>> = downloadManager.tasks
     val engineStatus: StateFlow<EngineStatus> = downloadManager.engineStatus
+    val videoQualityState: StateFlow<VideoQualityState> = downloadManager.videoQualityState
     val updateProgress: StateFlow<Float> = appUpdater.updateProgress
 
     private val _updateInfo = MutableStateFlow<AppUpdater.UpdateInfo?>(null)
@@ -50,10 +52,18 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         checkForUpdates()
     }
 
-    fun addDownload(url: String, format: String, quality: String) {
+    fun addDownload(url: String, format: String, quality: String, videoQuality: Int? = null) {
         if (url.isNotBlank()) {
-            downloadManager.addDownload(url, format, quality)
+            downloadManager.addDownload(url, format, quality, videoQuality)
         }
+    }
+
+    fun analyzeVideoQualities(url: String) {
+        downloadManager.analyzeVideoQualities(url)
+    }
+
+    fun clearCompleted() {
+        downloadManager.clearCompleted()
     }
 
     fun cancelDownload(taskId: String) {

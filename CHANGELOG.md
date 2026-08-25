@@ -2,6 +2,22 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
+## [1.3.1] - 2026-08-25
+
+### Modificado
+- **Color de estados:** Se reemplazó el rojo de errores y validaciones por `#079C5E` en escritorio, Android y el sistema visual documentado.
+
+## [1.3.0] - 2026-08-20
+
+### Añadido
+- **Calidad real de video:** MP4/MKV consultan metadata con `yt-dlp` sin descargar, muestran alturas únicas disponibles y permiten elegir un límite máximo (`videoQuality`). Si no hay alturas, se usa `Mejor disponible`; el CLI incorpora `--video-quality`.
+- **Flujo de análisis en Android:** Nuevo `VideoQualityState` con estados inactivo, analizando, listo y error; la selección se invalida al cambiar la URL y se conserva en cada tarea.
+- **Limpieza de cola:** Escritorio y Android incorporan `Limpiar completadas`.
+
+### Modificado
+- **Rediseño visual:** Escritorio con dos paneles y Android con `LazyColumn`, tema oscuro fijo, superficies planas, coral como acción principal y estados semánticos. Se eliminaron blur, glassmorphism, degradados y controles de calidad ficticios.
+- **Selector de formatos:** MP3 mantiene bitrate de audio; MP4/MKV priorizan el contenedor correspondiente y combinan video/audio mediante FFmpeg sin superar la resolución elegida.
+
 ## [1.2.9] - 2026-07-23
 
 ### Corregido

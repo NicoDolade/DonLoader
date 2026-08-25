@@ -1,6 +1,6 @@
 # DonLoader - Aplicación Portable y Optimizada
 
-**DonLoader** es una aplicación de escritorio para Windows diseñada para descargar videos y audio de internet (usando la potencia de `yt-dlp` y `FFmpeg`) a la máxima velocidad permitida por tu conexión de red. 
+**DonLoader** es una aplicación para Windows y Android diseñada para descargar videos y audio de internet (usando `yt-dlp`, `FFmpeg` y `aria2c`) a la máxima velocidad permitida por tu conexión de red, con control explícito de la calidad de video.
 
 Se compila en un único archivo ejecutable portable (`DonLoader.exe`) e independiente, lo que significa que no requiere instalación de dependencias, Python ni configuraciones complejas para el usuario final.
 
@@ -14,8 +14,9 @@ Se compila en un único archivo ejecutable portable (`DonLoader.exe`) e independ
 4. **Auto-actualización Interactiva con Auto-reinicio:** Al iniciar, busca silenciosamente nuevas versiones de la librería `yt-dlp` en PyPI. Si encuentra una, muestra una interfaz modal flotante con barra de progreso, descarga la actualización en segundo plano e inicia automáticamente un auto-reinicio (`os.execv`) para que surta efecto de inmediato.
 5. **Optimización de Red TCP y DNS:** Al iniciarse (con privilegios de Administrador), la aplicación vacía automáticamente la caché de DNS (`ipconfig /flushdns`) y configura la optimización global de Windows para paquetes TCP (`netsh int tcp set global autotuninglevel=normal`).
 6. **Descarga Ultra-Rápida:** Fuerza a `yt-dlp` a descargar en paralelo utilizando **8 hilos simultáneos** y fragmentos de 10 MB para exprimir al máximo tu ancho de banda de red.
-7. **Diseño Visual Premium:** Interfaz gráfica moderna en Tkinter basada en la paleta de colores oscuros **Catppuccin Mocha**, con un panel inferior scrollable e interactivo para visualizar el estado y progreso individual de cada descarga de la cola, y una barra inferior limpia.
+7. **Interfaz simple y sobria:** Escritorio con dos paneles y Android con una sola columna, superficies oscuras planas, un acento coral y tarjetas compactas de estado. No se usan blur, glassmorphism ni degradados.
 8. **Icono Squircle con Transparencia:** Icono personalizado de bordes redondeados, integrado en la barra de tareas de Windows y en la barra de título de la aplicación.
+9. **Calidad de video seleccionable:** MP4 y MKV permiten analizar la metadata, mostrar únicamente las alturas disponibles y descargar con la resolución elegida como límite máximo. Si no se especifica una calidad, se usa la mejor disponible.
 
 ---
 
@@ -28,6 +29,7 @@ Si abres la aplicación directamente haciendo doble clic en `DonLoader.exe`:
 - Muestra una pantalla de inicio donde puedes pegar la URL del video.
 - Permite seleccionar el formato de salida (**MP3**, **MP4** o **MKV**).
 - Permite ajustar la calidad de conversión de audio (128, 192, 256 o 320 kbps) si eliges MP3.
+- Para MP4/MKV, el botón **Analizar** consulta las resoluciones reales del enlace en segundo plano. La mayor queda seleccionada por defecto y podés elegir, por ejemplo, 720p sin descargar una resolución superior.
 - Permite examinar tu equipo para definir la carpeta de destino (por defecto, la carpeta de descargas del usuario).
 - Muestra la barra inferior con la versión cargada (ej: `DonLoader v1.2.0`).
 - Al hacer clic en Descargar, la URL se añade a la cola visual en tiempo real en la mitad inferior de la pantalla y el campo de texto se vacía inmediatamente, permitiendo seguir añadiendo más descargas al instante sin interrupciones.
@@ -47,6 +49,11 @@ Si deseas ejecutar la descarga de forma silenciosa dentro de un script o termina
 ```
 - No abre ninguna ventana de interfaz gráfica.
 - Muestra la barra de progreso Unicode en la propia consola.
+- Para limitar la resolución máxima del video, agregá `--video-quality`:
+  ```powershell
+  .\DonLoader.exe -u "https://www.youtube.com/watch?v=Ejemplo" -f mp4 --video-quality 720 --no-gui
+  ```
+- En modo CLI, si no se indica `--video-quality`, se elige la mejor calidad disponible.
 
 ---
 

@@ -1,27 +1,29 @@
 package com.example.donloader.ui.main
 
-import com.example.donloader.data.DataRepository
-import junit.framework.TestCase.assertEquals
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.test.runTest
+import com.example.donloader.data.DownloadTask
+import com.example.donloader.data.normalizeVideoHeights
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class MainScreenViewModelTest {
-  @Test
-  fun uiState_initiallyLoading() = runTest {
-    val viewModel = MainScreenViewModel(FakeMyModelRepository())
-    assertEquals(viewModel.uiState.first(), MainScreenUiState.Loading)
-  }
 
-  @Test
-  fun uiState_onItemSaved_isDisplayed() = runTest {
-    val viewModel = MainScreenViewModel(FakeMyModelRepository())
-    assertEquals(viewModel.uiState.first(), MainScreenUiState.Loading)
-  }
-}
+    @Test
+    fun normalizedHeightsAreUniquePositiveAndDescending() {
+        assertEquals(
+            listOf(2160, 1080, 720),
+            normalizeVideoHeights(listOf(0, 720, 1080, 720, -1, 2160)),
+        )
+    }
 
-private class FakeMyModelRepository : DataRepository {
-  override val data: Flow<List<String>> = flow { emit(listOf("Sample")) }
+    @Test
+    fun downloadTaskKeepsSelectedVideoQuality() {
+        val task = DownloadTask(
+            id = "test",
+            url = "https://example.test/video",
+            format = "MP4",
+            videoQuality = 720,
+        )
+
+        assertEquals(720, task.videoQuality)
+    }
 }

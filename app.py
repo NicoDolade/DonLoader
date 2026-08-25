@@ -9,7 +9,7 @@ import zipfile
 import shutil
 import re
 import tkinter as tk
-from tkinter import messagebox, filedialog
+from tkinter import filedialog
 
 # Cargar versión actualizada de yt-dlp si existe
 def check_and_load_yt_dlp_update():
@@ -29,17 +29,86 @@ check_and_load_yt_dlp_update()
 import yt_dlp
 
 # Versión de la aplicación (SemVer)
-APP_VERSION = "v1.2.9"
+APP_VERSION = "v1.3.1"
 
-# Paleta de colores Catppuccin Mocha
-BG_COLOR = "#1e1e2e"          # Base
-SURFACE_COLOR = "#313244"     # Surface0
-BORDER_COLOR = "#45475a"      # Surface1
-TEXT_PRIMARY = "#cdd6f4"      # Text
-TEXT_SECONDARY = "#a6adc8"    # Subtext0
-ACCENT_BLUE = "#89b4fa"       # Blue (Progreso / Botones primarios)
-ACCENT_GREEN = "#a6e3a1"      # Green (Éxito)
-ACCENT_RED = "#f38ba8"        # Red (Error)
+# Identidad visual DonLoader: oscura, sobria y con un único acento expresivo.
+BG_COLOR = "#101216"
+SURFACE_COLOR = "#181C22"
+SURFACE_ELEVATED = "#20262F"
+BORDER_COLOR = "#2B333E"
+TEXT_PRIMARY = "#F3F5F7"
+TEXT_SECONDARY = "#9AA4B2"
+ACCENT_PRIMARY = "#FF6B5B"
+ACCENT_BLUE = "#7FA8FF"       # Estado informativo del motor
+ACCENT_GREEN = "#43C995"      # Éxito
+ACCENT_RED = "#079C5E"        # Error
+ACCENT_AMBER = "#F2B866"      # Actualización / advertencia
+
+
+def extract_video_heights(info):
+    """Devuelve alturas de video únicas, ordenadas de mayor a menor.
+
+    yt-dlp puede devolver formatos de audio, video progresivo y streams
+    separados. Los formatos sin altura conocida no se presentan como una
+    resolución numérica para no prometer una calidad que no conocemos.
+    """
+    heights = set()
+    for media_format in (info.get("formats") or []):
+        vcodec = media_format.get("vcodec")
+        if vcodec is not None and str(vcodec).lower() == "none":
+            continue
+        try:
+            height = int(media_format.get("height") or 0)
+        except (TypeError, ValueError):
+            height = 0
+        if height > 0:
+            heights.add(height)
+
+    # Algunos extractores informan la altura solo en el objeto principal.
+    if not heights:
+        try:
+            top_level_height = int(info.get("height") or 0)
+        except (TypeError, ValueError):
+            top_level_height = 0
+        if top_level_height > 0:
+            heights.add(top_level_height)
+
+    return sorted(heights, reverse=True)
+
+
+def build_video_format_selector(media_format, video_quality=None):
+    """Construye una selección de yt-dlp que nunca supere la altura elegida."""
+    if video_quality is None:
+        if media_format == "mp4":
+            return "bv*[ext=mp4]+ba[ext=m4a]/bv*+ba/b"
+        return "bv*+ba/b"
+
+    try:
+        height = int(video_quality)
+    except (TypeError, ValueError):
+        return build_video_format_selector(media_format, None)
+
+    # El primer grupo prefiere streams compatibles con el contenedor elegido.
+    # El segundo permite formatos separados de cualquier extensión cuando el
+    # sitio no ofrece MP4 a esa altura. El fallback worst mantiene el límite.
+    if media_format == "mp4":
+        return (
+            f"bv*[height<={height}][ext=mp4]+ba[ext=m4a]"
+            f"/bv*[height<={height}]+ba/b[height<={height}]"
+            f"/wv*[height<={height}]+ba/w[height<={height}]"
+        )
+    return f"bv*[height<={height}]+ba/b[height<={height}]/wv*[height<={height}]+ba/w[height<={height}]"
+
+
+def positive_int(value):
+    """Tipo de argparse para alturas de video mayores que cero."""
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError) as error:
+        raise argparse.ArgumentTypeError("debe ser un número entero") from error
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("debe ser mayor que cero")
+    return parsed
 
 def sanitize_filename(name):
     """Sanitiza el nombre eliminando caracteres no permitidos en rutas de Windows."""
@@ -155,13 +224,15 @@ class ModernButton(tk.Button):
         # Si no se define hover_bg, calcular uno armónico
         if not self.hover_bg:
             if self.normal_bg == ACCENT_BLUE:
-                self.hover_bg = "#b4befe"      # Lavender
+                self.hover_bg = "#9DBBFF"
             elif self.normal_bg == ACCENT_GREEN:
-                self.hover_bg = "#85e07d"      # Green claro
+                self.hover_bg = "#66DDAA"
             elif self.normal_bg == ACCENT_RED:
-                self.hover_bg = "#f5c2e7"      # Pink
+                self.hover_bg = "#FF8A8A"
             elif self.normal_bg == SURFACE_COLOR:
-                self.hover_bg = "#45475a"      # Surface1
+                self.hover_bg = BORDER_COLOR
+            elif self.normal_bg == ACCENT_PRIMARY:
+                self.hover_bg = "#FF8477"
             else:
                 self.hover_bg = self.normal_bg
         
@@ -203,238 +274,418 @@ class ScrollableFrame(tk.Frame):
         self.canvas.itemconfigure(self.canvas_frame, width=event.width)
 
 class DownloadTask:
-    """Clase que representa una tarjeta de tarea de descarga individual en la interfaz."""
-    def __init__(self, app_instance, container, task_id, url, media_format, quality, output_dir):
+    """Tarjeta visual y ejecución de una descarga individual."""
+    def __init__(self, app_instance, container, task_id, url, media_format, quality,
+                 output_dir, video_quality=None):
         self.app = app_instance
         self.container = container
         self.id = task_id
         self.url = url
         self.media_format = media_format
         self.quality = quality
+        self.video_quality = video_quality
         self.output_dir = output_dir
-        
+
         self.status = "En cola"
         self.progress_percent = 0
         self.title = "Analizando enlace..."
-        self.speed_text = ""
         self.download_thread = None
-        
-        # Estructura visual de la tarjeta
-        self.frame = tk.Frame(self.container, bg=SURFACE_COLOR, bd=1, relief="solid")
-        self.frame.config(highlightbackground=BORDER_COLOR, highlightcolor=BORDER_COLOR)
-        self.frame.pack(fill="x", pady=5, ipady=4, padx=5)
-        
-        # Fila 1: Título y Estado
+
+        self.frame = tk.Frame(
+            self.container,
+            bg=SURFACE_COLOR,
+            bd=0,
+            highlightthickness=1,
+            highlightbackground=BORDER_COLOR,
+            highlightcolor=BORDER_COLOR,
+        )
+        self.frame.pack(fill="x", pady=(0, 10), padx=2)
+
         self.header_frame = tk.Frame(self.frame, bg=SURFACE_COLOR)
-        self.header_frame.pack(fill="x", padx=10, pady=(4, 2))
-        
-        self.title_label = tk.Label(self.header_frame, text=self.title, font=("Segoe UI", 9, "bold"),
-                                    fg=TEXT_PRIMARY, bg=SURFACE_COLOR, anchor="w", justify="left")
+        self.header_frame.pack(fill="x", padx=12, pady=(10, 5))
+
+        quality_text = self._quality_text()
+        self.format_label = tk.Label(
+            self.header_frame,
+            text=self.media_format.upper(),
+            font=("Segoe UI", 8, "bold"),
+            fg=TEXT_PRIMARY,
+            bg=SURFACE_ELEVATED,
+            padx=7,
+            pady=3,
+        )
+        self.format_label.pack(side="left", padx=(0, 8))
+
+        self.title_label = tk.Label(
+            self.header_frame,
+            text=self.title,
+            font=("Segoe UI", 10, "bold"),
+            fg=TEXT_PRIMARY,
+            bg=SURFACE_COLOR,
+            anchor="w",
+            justify="left",
+        )
         self.title_label.pack(side="left", fill="x", expand=True)
-        
-        self.status_label = tk.Label(self.header_frame, text=self.status, font=("Segoe UI", 9, "bold"),
-                                     fg=TEXT_SECONDARY, bg=SURFACE_COLOR, anchor="e")
-        self.status_label.pack(side="right", padx=5)
-        
-        # Fila 2: Barra de progreso (Canvas)
-        self.canvas = tk.Canvas(self.frame, height=8, bg=BG_COLOR, highlightthickness=0)
-        self.canvas.pack(fill="x", padx=10, pady=3)
-        self.progress_rect = self.canvas.create_rectangle(0, 0, 0, 8, fill=ACCENT_BLUE, width=0)
-        
-        # Fila 3: Detalles e información
-        self.info_label = tk.Label(self.frame, text="Esperando en cola...", font=("Segoe UI", 8),
-                                   fg=TEXT_SECONDARY, bg=SURFACE_COLOR, anchor="w")
-        self.info_label.pack(fill="x", padx=10, pady=(1, 4))
-        
-        self.canvas.bind('<Configure>', self._draw_progress)
-        
+
+        self.status_label = tk.Label(
+            self.header_frame,
+            text=self.status,
+            font=("Segoe UI", 9, "bold"),
+            fg=TEXT_SECONDARY,
+            bg=SURFACE_COLOR,
+            anchor="e",
+        )
+        self.status_label.pack(side="right", padx=(8, 0))
+
+        self.canvas = tk.Canvas(self.frame, height=6, bg=SURFACE_ELEVATED, highlightthickness=0)
+        self.canvas.pack(fill="x", padx=12, pady=(2, 7))
+        self.progress_rect = self.canvas.create_rectangle(0, 0, 0, 6, fill=ACCENT_PRIMARY, width=0)
+
+        self.meta_frame = tk.Frame(self.frame, bg=SURFACE_COLOR)
+        self.meta_frame.pack(fill="x", padx=12, pady=(0, 10))
+
+        self.info_label = tk.Label(
+            self.meta_frame,
+            text="Esperando en cola...",
+            font=("Segoe UI", 8),
+            fg=TEXT_SECONDARY,
+            bg=SURFACE_COLOR,
+            anchor="w",
+        )
+        self.info_label.pack(side="left", fill="x", expand=True)
+
+        self.quality_label = tk.Label(
+            self.meta_frame,
+            text=quality_text,
+            font=("Segoe UI", 8, "bold"),
+            fg=TEXT_SECONDARY,
+            bg=SURFACE_COLOR,
+            anchor="e",
+        )
+        self.quality_label.pack(side="right", padx=(8, 0))
+
+        self.canvas.bind("<Configure>", self._draw_progress)
+
+    def _quality_text(self):
+        if self.media_format == "mp3":
+            return f"MP3 · {self.quality} kbps"
+        if self.video_quality is None:
+            return f"{self.media_format.upper()} · Mejor disponible"
+        return f"{self.media_format.upper()} · {self.video_quality}p"
+
     def _draw_progress(self, event=None):
         canvas_width = self.canvas.winfo_width()
         target_width = int((self.progress_percent / 100.0) * canvas_width)
-        self.canvas.coords(self.progress_rect, 0, 0, target_width, 8)
-        
+        self.canvas.coords(self.progress_rect, 0, 0, target_width, 6)
+
     def set_status(self, status, color=TEXT_SECONDARY):
         self.status = status
         self.status_label.config(text=status, fg=color)
-        
+        if status == "Completado":
+            self.canvas.itemconfig(self.progress_rect, fill=ACCENT_GREEN)
+        elif status in ("Descargando...", "Analizando..."):
+            self.canvas.itemconfig(self.progress_rect, fill=ACCENT_PRIMARY)
+
     def set_info(self, info_text):
         self.info_label.config(text=info_text)
-        
+
     def set_title(self, title):
         self.title = title
-        display_title = title
-        if len(display_title) > 55:
-            display_title = display_title[:52] + "..."
+        display_title = title if len(title) <= 64 else title[:61] + "..."
         self.title_label.config(text=display_title)
-        
+
     def update_progress(self, percent, info_text):
         self.progress_percent = percent
         self._draw_progress()
         self.set_info(info_text)
-        
+
+    def destroy(self):
+        self.frame.destroy()
+
     def start(self):
         """Arranca el hilo de ejecución para esta tarea de descarga."""
         self.set_status("Analizando...", ACCENT_BLUE)
         self.set_info("Analizando URL del video...")
         self.download_thread = threading.Thread(target=self.run, daemon=True)
         self.download_thread.start()
-        
+
     def progress_hook(self, d):
-        if d['status'] == 'downloading':
-            total = d.get('total_bytes') or d.get('total_bytes_estimate')
-            downloaded = d.get('downloaded_bytes', 0)
-            speed = d.get('speed')
-            eta = d.get('eta')
-            
+        if d["status"] == "downloading":
+            total = d.get("total_bytes") or d.get("total_bytes_estimate")
+            downloaded = d.get("downloaded_bytes", 0)
+            speed = d.get("speed")
+            eta = d.get("eta")
+
             if total:
                 percent = (downloaded / total) * 100
                 downloaded_mb = downloaded / 1024 / 1024
                 total_mb = total / 1024 / 1024
                 speed_mb = speed / 1024 / 1024 if speed else 0
                 eta_val = int(eta) if eta is not None else 0
-                
-                info_text = f"Descargado: {downloaded_mb:.1f} MB de {total_mb:.1f} MB | Vel: {speed_mb:.2f} MB/s | ETA: {eta_val}s"
+                info_text = (
+                    f"{downloaded_mb:.1f} MB de {total_mb:.1f} MB · "
+                    f"{speed_mb:.2f} MB/s · ETA {eta_val}s"
+                )
                 self.app.root.after(0, lambda: self.update_progress(percent, info_text))
             else:
                 downloaded_mb = downloaded / 1024 / 1024
                 speed_mb = speed / 1024 / 1024 if speed else 0
-                info_text = f"Descargado: {downloaded_mb:.1f} MB | Vel: {speed_mb:.2f} MB/s"
+                info_text = f"{downloaded_mb:.1f} MB · {speed_mb:.2f} MB/s"
                 self.app.root.after(0, lambda: self.update_progress(0, info_text))
-                
-        elif d['status'] == 'finished':
-            self.app.root.after(0, lambda: self.update_progress(100, "Procesando / Convirtiendo audio o video con FFmpeg..."))
-            
+
+        elif d["status"] == "finished":
+            self.app.root.after(
+                0,
+                lambda: self.update_progress(100, "Procesando con FFmpeg..."),
+            )
+
     def run(self):
         try:
             ffmpeg_path = get_ffmpeg_path()
             if not os.path.exists(ffmpeg_path):
                 self.app.root.after(0, lambda: self.set_status("Error FFmpeg", ACCENT_RED))
-                self.app.root.after(0, lambda: self.set_info("No se encontró FFmpeg en la ruta empaquetada."))
+                self.app.root.after(
+                    0,
+                    lambda: self.set_info("No se encontró FFmpeg en la ruta empaquetada."),
+                )
                 self.app.on_task_finished(self, success=False)
                 return
-                
-            # Obtener el título antes del inicio de la descarga
+
             ydl_opts_info = {
-                'ffmpeg_location': ffmpeg_path,
-                'quiet': True,
-                'no_warnings': True,
+                "ffmpeg_location": ffmpeg_path,
+                "quiet": True,
+                "no_warnings": True,
+                "noplaylist": True,
             }
             title = "Video de Internet"
             try:
                 with yt_dlp.YoutubeDL(ydl_opts_info) as ydl:
                     info = ydl.extract_info(self.url, download=False)
-                    if 'title' in info:
-                        title = info['title']
+                    if "title" in info:
+                        title = info["title"]
             except Exception:
                 pass
-                
+
             self.app.root.after(0, lambda: self.set_title(title))
-            self.app.root.after(0, lambda: self.set_status("Descargando...", ACCENT_BLUE))
-            
-            # Crear subcarpeta con el título del video sanitizado
+            self.app.root.after(0, lambda: self.set_status("Descargando...", ACCENT_PRIMARY))
+
             sanitized_title = sanitize_filename(title)
             task_output_dir = os.path.join(self.output_dir, sanitized_title)
             os.makedirs(task_output_dir, exist_ok=True)
-            
+
             ydl_opts = {
-                'ffmpeg_location': ffmpeg_path,
-                'outtmpl': os.path.join(task_output_dir, '%(title)s.%(ext)s'),
-                'quiet': True,
-                'no_warnings': True,
-                'progress_hooks': [self.progress_hook],
-                'concurrent_fragment_downloads': 8,
-                'http_chunk_size': 10485760,
+                "ffmpeg_location": ffmpeg_path,
+                "outtmpl": os.path.join(task_output_dir, "%(title)s.%(ext)s"),
+                "quiet": True,
+                "no_warnings": True,
+                "noplaylist": True,
+                "progress_hooks": [self.progress_hook],
+                "concurrent_fragment_downloads": 8,
+                "http_chunk_size": 10485760,
             }
-            
-            if self.media_format == 'mp3':
+
+            if self.media_format == "mp3":
                 ydl_opts.update({
-                    'format': 'bestaudio/best',
-                    'postprocessors': [{
-                        'key': 'FFmpegExtractAudio',
-                        'preferredcodec': 'mp3',
-                        'preferredquality': self.quality,
+                    "format": "bestaudio/best",
+                    "postprocessors": [{
+                        "key": "FFmpegExtractAudio",
+                        "preferredcodec": "mp3",
+                        "preferredquality": self.quality,
                     }],
                 })
-            elif self.media_format in ['mp4', 'mkv']:
+            elif self.media_format in ["mp4", "mkv"]:
                 ydl_opts.update({
-                    'format': 'bestvideo+bestaudio/best',
-                    'merge_output_format': self.media_format,
+                    "format": build_video_format_selector(self.media_format, self.video_quality),
+                    "merge_output_format": self.media_format,
                 })
-                
+
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([self.url])
-                
+
             self.app.root.after(0, lambda: self.set_status("Completado", ACCENT_GREEN))
             self.app.root.after(0, lambda: self.set_info(f"Guardado en: {task_output_dir}"))
             self.app.on_task_finished(self, success=True)
-            
+
         except Exception as e:
             error_str = str(e)
-            if len(error_str) > 80:
-                error_str = error_str[:77] + "..."
+            if len(error_str) > 100:
+                error_str = error_str[:97] + "..."
             self.app.root.after(0, lambda: self.set_status("Error", ACCENT_RED))
             self.app.root.after(0, lambda: self.set_info(error_str))
             self.app.on_task_finished(self, success=False)
 
 class DonLoaderApp:
     """Clase principal de la interfaz gráfica en Tkinter para DonLoader."""
-    def __init__(self, root, url=None, media_format="mp3", output_dir=None, quality="192", direct_mode=False):
+    def __init__(self, root, url=None, media_format="mp3", output_dir=None,
+                 quality="192", direct_mode=False, video_quality=None):
         self.root = root
         self.root.title("DonLoader")
-        self.root.geometry("600x550")
+        self.root.geometry("960x640")
+        self.root.minsize(820, 560)
         self.root.configure(bg=BG_COLOR)
-        self.root.resizable(False, False)
-        
+        self.root.resizable(True, True)
+
         self.direct_mode = direct_mode
         self.initial_url = url
         self.media_format = media_format
         self.output_dir = output_dir or get_downloads_folder()
         self.quality = quality
-        
-        # Mantener las descargas
+        self.video_quality = video_quality
+
         self.tasks = []
-        
-        # Atributos de ventana
+        self._next_task_id = 0
+        self._analysis_token = 0
+        self.analysis_state = "idle"
+        self.analyzed_url = ""
+        self.available_video_heights = []
+
         self.root.attributes("-topmost", True)
         self.root.after(1000, lambda: self.root.attributes("-topmost", False))
-        
-        # Marcos principales
-        self.input_frame = tk.Frame(self.root, bg=BG_COLOR)
-        self.input_frame.pack(fill="x", padx=30, pady=(20, 10))
-        
-        self.queue_label_frame = tk.Frame(self.root, bg=BG_COLOR)
-        self.queue_label_frame.pack(fill="x", padx=30)
-        
-        lbl = tk.Label(self.queue_label_frame, text="Cola de Descargas", font=("Segoe UI", 12, "bold"), fg=TEXT_PRIMARY, bg=BG_COLOR)
-        lbl.pack(anchor="w", pady=(10, 5))
-        
-        # ScrollableFrame para tareas
-        self.scroll_frame = ScrollableFrame(self.root, bg=BG_COLOR)
-        self.scroll_frame.pack(fill="both", expand=True, padx=30, pady=(0, 10))
-        
-        # Footer
-        self.footer_frame = tk.Frame(self.root, bg="#11111b", height=30)
-        self.footer_frame.pack(side="bottom", fill="x")
-        self.footer_frame.pack_propagate(False)
-        
-        self.version_label = tk.Label(self.footer_frame, text=f"DonLoader {APP_VERSION}",
-                                      font=("Segoe UI", 8), fg="#a6adc8", bg="#11111b")
-        self.version_label.pack(side="left", padx=15, pady=5)
-        
-        self.update_status_label = tk.Label(self.footer_frame, text="Buscando...", font=("Segoe UI", 8),
-                                            fg=ACCENT_BLUE, bg="#11111b")
-        self.update_status_label.pack(side="right", padx=15, pady=5)
-        
-        # Configurar icono de la aplicación (barra de tareas y ventana)
+
+        self.root.grid_rowconfigure(1, weight=1)
+        self.root.grid_columnconfigure(0, weight=0, minsize=340)
+        self.root.grid_columnconfigure(1, weight=1)
+
+        # Encabezado compacto: identidad y estado del motor.
+        self.header_frame = tk.Frame(self.root, bg=BG_COLOR)
+        self.header_frame.grid(row=0, column=0, columnspan=2, sticky="ew", padx=24, pady=(20, 14))
+        self.header_frame.grid_columnconfigure(1, weight=1)
+
+        logo = tk.Label(
+            self.header_frame,
+            text="↓",
+            font=("Segoe UI", 17, "bold"),
+            fg=BG_COLOR,
+            bg=ACCENT_PRIMARY,
+            width=2,
+            pady=2,
+        )
+        logo.grid(row=0, column=0, rowspan=2, padx=(0, 10))
+
+        tk.Label(
+            self.header_frame,
+            text="DonLoader",
+            font=("Segoe UI", 16, "bold"),
+            fg=TEXT_PRIMARY,
+            bg=BG_COLOR,
+            anchor="w",
+        ).grid(row=0, column=1, sticky="w")
+        tk.Label(
+            self.header_frame,
+            text="Descargas rápidas, simples y bajo control",
+            font=("Segoe UI", 8),
+            fg=TEXT_SECONDARY,
+            bg=BG_COLOR,
+            anchor="w",
+        ).grid(row=1, column=1, sticky="w")
+
+        status_pill = tk.Frame(self.header_frame, bg=SURFACE_COLOR, padx=10, pady=6)
+        status_pill.grid(row=0, column=2, rowspan=2, sticky="e")
+        self.engine_status_dot = tk.Label(
+            status_pill, text="●", font=("Segoe UI", 8), fg=ACCENT_AMBER, bg=SURFACE_COLOR
+        )
+        self.engine_status_dot.pack(side="left", padx=(0, 5))
+        self.update_status_label = tk.Label(
+            status_pill,
+            text="Buscando motor...",
+            font=("Segoe UI", 8, "bold"),
+            fg=ACCENT_AMBER,
+            bg=SURFACE_COLOR,
+        )
+        self.update_status_label.pack(side="left")
+
+        # Área principal de dos paneles.
+        self.content_frame = tk.Frame(self.root, bg=BG_COLOR)
+        self.content_frame.grid(row=1, column=0, columnspan=2, sticky="nsew", padx=24, pady=(0, 14))
+        self.content_frame.grid_rowconfigure(0, weight=1)
+        self.content_frame.grid_columnconfigure(0, weight=0, minsize=320)
+        self.content_frame.grid_columnconfigure(1, weight=1)
+
+        self.input_frame = tk.Frame(
+            self.content_frame,
+            bg=SURFACE_COLOR,
+            highlightthickness=1,
+            highlightbackground=BORDER_COLOR,
+        )
+        self.input_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 14))
+
+        self.queue_frame = tk.Frame(self.content_frame, bg=BG_COLOR)
+        self.queue_frame.grid(row=0, column=1, sticky="nsew")
+        self.queue_frame.grid_rowconfigure(1, weight=1)
+        self.queue_frame.grid_columnconfigure(0, weight=1)
+
+        queue_header = tk.Frame(self.queue_frame, bg=BG_COLOR)
+        queue_header.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        queue_header.grid_columnconfigure(0, weight=1)
+        self.queue_count_label = tk.Label(
+            queue_header,
+            text="Cola de descargas · 0",
+            font=("Segoe UI", 12, "bold"),
+            fg=TEXT_PRIMARY,
+            bg=BG_COLOR,
+            anchor="w",
+        )
+        self.queue_count_label.grid(row=0, column=0, sticky="w")
+        self.clear_completed_btn = ModernButton(
+            queue_header,
+            text="Limpiar completadas",
+            font=("Segoe UI", 8, "bold"),
+            bg=BG_COLOR,
+            hover_bg=SURFACE_ELEVATED,
+            fg=TEXT_SECONDARY,
+            command=self.clear_completed,
+            state=tk.DISABLED,
+        )
+        self.clear_completed_btn.grid(row=0, column=1, sticky="e")
+
+        self.scroll_frame = ScrollableFrame(self.queue_frame, bg=BG_COLOR)
+        self.scroll_frame.grid(row=1, column=0, sticky="nsew")
+        self.empty_queue_frame = tk.Frame(self.scroll_frame.scrollable_frame, bg=SURFACE_COLOR,
+                                          highlightthickness=1, highlightbackground=BORDER_COLOR)
+        tk.Label(
+            self.empty_queue_frame,
+            text="↓",
+            font=("Segoe UI", 24, "bold"),
+            fg=ACCENT_PRIMARY,
+            bg=SURFACE_COLOR,
+        ).pack(pady=(32, 4))
+        tk.Label(
+            self.empty_queue_frame,
+            text="Sin descargas todavía",
+            font=("Segoe UI", 11, "bold"),
+            fg=TEXT_PRIMARY,
+            bg=SURFACE_COLOR,
+        ).pack()
+        tk.Label(
+            self.empty_queue_frame,
+            text="Pegá un enlace a la izquierda para empezar.",
+            font=("Segoe UI", 8),
+            fg=TEXT_SECONDARY,
+            bg=SURFACE_COLOR,
+        ).pack(pady=(4, 32))
+
+        self.footer_frame = tk.Frame(self.root, bg=SURFACE_COLOR, height=28)
+        self.footer_frame.grid(row=2, column=0, columnspan=2, sticky="ew")
+        self.footer_frame.grid_propagate(False)
+        self.version_label = tk.Label(
+            self.footer_frame,
+            text=f"DonLoader {APP_VERSION}",
+            font=("Segoe UI", 8),
+            fg=TEXT_SECONDARY,
+            bg=SURFACE_COLOR,
+        )
+        self.version_label.pack(side="left", padx=18, pady=6)
+
         self.set_icon()
-        
-        # Cargar los campos de control
         self.show_input_view()
-        
-        # Iniciar hilo de búsqueda de actualizaciones de yt-dlp
+        self.update_queue_state()
+
+        if self.direct_mode:
+            self.input_frame.grid_remove()
+            self.queue_frame.grid_configure(column=0, columnspan=2)
+
         threading.Thread(target=update_yt_dlp_worker, args=(self,), daemon=True).start()
-        
-        # Si se pasó una URL por parámetro, iniciar descarga automáticamente
+
         if self.direct_mode and self.initial_url:
             self.url_entry.insert(0, self.initial_url)
             self.on_start_click()
@@ -462,8 +713,20 @@ class DonLoaderApp:
                 pass
 
     def set_update_status(self, message):
-        """Actualiza de forma segura el texto de estado en el footer desde hilos secundarios."""
-        self.root.after(0, lambda: self.update_status_label.config(text=message))
+        """Actualiza de forma segura el estado del motor desde hilos secundarios."""
+        def update_label():
+            if message in ("Al día", "Sin actualizaciones"):
+                color = ACCENT_GREEN
+            elif "Error" in message:
+                color = ACCENT_RED
+            elif "Actual" in message or "Buscando" in message:
+                color = ACCENT_AMBER
+            else:
+                color = TEXT_SECONDARY
+            self.update_status_label.config(text=message, fg=color)
+            self.engine_status_dot.config(fg=color)
+
+        self.root.after(0, update_label)
 
     def show_update_dialog(self, version, data, updates_dir, version_file):
         """Muestra una modal de actualización, descarga la actualización y reinicia la app."""
@@ -575,90 +838,313 @@ class DonLoaderApp:
             sys.exit(0)
 
     def show_input_view(self):
-        # Limpiar widgets antiguos
         for widget in self.input_frame.winfo_children():
             widget.destroy()
-            
-        # Título principal
-        title_label = tk.Label(self.input_frame, text="DonLoader", font=("Segoe UI", 18, "bold"), fg=ACCENT_BLUE, bg=BG_COLOR)
-        title_label.pack(anchor="w", pady=(0, 10))
-        
-        # Campo de entrada de URL
-        url_label = tk.Label(self.input_frame, text="URL del Video / Audio", font=("Segoe UI", 9, "bold"), fg=TEXT_PRIMARY, bg=BG_COLOR)
-        url_label.pack(anchor="w", pady=(0, 3))
-        
-        self.url_entry = tk.Entry(self.input_frame, font=("Segoe UI", 10), bg=SURFACE_COLOR, fg=TEXT_PRIMARY,
-                                  insertbackground=TEXT_PRIMARY, relief="flat", highlightthickness=1, 
-                                  highlightcolor=ACCENT_BLUE, highlightbackground=BORDER_COLOR)
-        self.url_entry.pack(fill="x", ipady=5, pady=(0, 10))
-            
-        # Contenedor de Formato y Calidad
-        fmt_q_frame = tk.Frame(self.input_frame, bg=BG_COLOR)
-        fmt_q_frame.pack(fill="x", pady=(0, 10))
-        
-        # Columna de Formato
-        fmt_frame = tk.Frame(fmt_q_frame, bg=BG_COLOR)
-        fmt_frame.pack(side="left", fill="both", expand=True)
-        
-        fmt_label = tk.Label(fmt_frame, text="Formato de Salida", font=("Segoe UI", 9, "bold"), fg=TEXT_PRIMARY, bg=BG_COLOR)
-        fmt_label.pack(anchor="w", pady=(0, 3))
-        
+
+        form = tk.Frame(self.input_frame, bg=SURFACE_COLOR)
+        form.pack(fill="both", expand=True, padx=18, pady=18)
+
+        tk.Label(
+            form, text="Nueva descarga", font=("Segoe UI", 15, "bold"),
+            fg=TEXT_PRIMARY, bg=SURFACE_COLOR, anchor="w"
+        ).pack(anchor="w")
+        tk.Label(
+            form, text="Elegí el formato y ajustá la calidad antes de encolar.",
+            font=("Segoe UI", 8), fg=TEXT_SECONDARY, bg=SURFACE_COLOR, anchor="w"
+        ).pack(anchor="w", pady=(3, 20))
+
+        tk.Label(
+            form, text="ENLACE", font=("Segoe UI", 8, "bold"),
+            fg=TEXT_SECONDARY, bg=SURFACE_COLOR, anchor="w"
+        ).pack(anchor="w", pady=(0, 5))
+
+        url_row = tk.Frame(form, bg=SURFACE_COLOR)
+        url_row.pack(fill="x")
+        self.url_entry = tk.Entry(
+            url_row,
+            font=("Segoe UI", 10),
+            bg=SURFACE_ELEVATED,
+            fg=TEXT_PRIMARY,
+            insertbackground=TEXT_PRIMARY,
+            relief="flat",
+            highlightthickness=1,
+            highlightcolor=ACCENT_PRIMARY,
+            highlightbackground=BORDER_COLOR,
+        )
+        self.url_entry.pack(side="left", fill="x", expand=True, ipady=7)
+        self.url_entry.bind("<KeyRelease>", lambda event: self.on_url_changed())
+
+        self.paste_btn = ModernButton(
+            url_row, text="Pegar", font=("Segoe UI", 8, "bold"),
+            bg=SURFACE_ELEVATED, hover_bg=BORDER_COLOR, fg=TEXT_PRIMARY,
+            command=self.paste_url,
+        )
+        self.paste_btn.pack(side="left", padx=(7, 0), ipady=4)
+        self.analyze_btn = ModernButton(
+            url_row, text="Analizar", font=("Segoe UI", 8, "bold"),
+            bg=SURFACE_ELEVATED, hover_bg=BORDER_COLOR, fg=TEXT_PRIMARY,
+            command=self.analyze_url,
+        )
+        self.analyze_btn.pack(side="left", padx=(7, 0), ipady=4)
+
+        self.url_error_label = tk.Label(
+            form, text="", font=("Segoe UI", 8), fg=ACCENT_RED,
+            bg=SURFACE_COLOR, anchor="w", justify="left"
+        )
+        self.url_error_label.pack(fill="x", pady=(5, 0))
+
+        tk.Label(
+            form, text="FORMATO", font=("Segoe UI", 8, "bold"),
+            fg=TEXT_SECONDARY, bg=SURFACE_COLOR, anchor="w"
+        ).pack(anchor="w", pady=(20, 5))
         self.fmt_var = tk.StringVar(value=self.media_format)
-        fmt_option_frame = tk.Frame(fmt_frame, bg=BG_COLOR)
-        fmt_option_frame.pack(anchor="w")
-        
-        for fmt in ["mp3", "mp4", "mkv"]:
-            rb = tk.Radiobutton(fmt_option_frame, text=fmt.upper(), variable=self.fmt_var, value=fmt,
-                                 font=("Segoe UI", 9), bg=BG_COLOR, fg=TEXT_PRIMARY, activebackground=BG_COLOR,
-                                 activeforeground=ACCENT_BLUE, selectcolor=SURFACE_COLOR, command=self.toggle_quality_menu)
-            rb.pack(side="left", padx=(0, 12))
-            
-        # Columna de Calidad
-        self.q_frame = tk.Frame(fmt_q_frame, bg=BG_COLOR)
-        self.q_frame.pack(side="right", fill="both", expand=True)
-        
-        self.q_label = tk.Label(self.q_frame, text="Calidad de Audio (kbps)", font=("Segoe UI", 9, "bold"), fg=TEXT_PRIMARY, bg=BG_COLOR)
-        self.q_label.pack(anchor="w", pady=(0, 3))
-        
+        format_row = tk.Frame(form, bg=SURFACE_COLOR)
+        format_row.pack(fill="x")
+        self.format_buttons = {}
+        for fmt in ("mp3", "mp4", "mkv"):
+            button = ModernButton(
+                format_row, text=fmt.upper(), font=("Segoe UI", 9, "bold"),
+                bg=SURFACE_ELEVATED, hover_bg=BORDER_COLOR, fg=TEXT_PRIMARY,
+                command=lambda selected=fmt: self.set_format(selected),
+            )
+            button.pack(side="left", fill="x", expand=True, padx=(0, 5))
+            self.format_buttons[fmt] = button
+
+        self.audio_quality_frame = tk.Frame(form, bg=SURFACE_COLOR)
+        tk.Label(
+            self.audio_quality_frame, text="CALIDAD DE AUDIO", font=("Segoe UI", 8, "bold"),
+            fg=TEXT_SECONDARY, bg=SURFACE_COLOR, anchor="w"
+        ).pack(anchor="w", pady=(18, 5))
         self.q_var = tk.StringVar(value=self.quality)
-        self.q_menu = tk.OptionMenu(self.q_frame, self.q_var, "128", "192", "256", "320")
-        self.q_menu.config(font=("Segoe UI", 9), bg=SURFACE_COLOR, fg=TEXT_PRIMARY, activebackground=BORDER_COLOR,
-                           activeforeground=TEXT_PRIMARY, relief="flat", highlightthickness=0)
-        self.q_menu["menu"].config(bg=SURFACE_COLOR, fg=TEXT_PRIMARY, activebackground=ACCENT_BLUE, activeforeground=BG_COLOR)
-        self.q_menu.pack(anchor="w")
-        
-        self.toggle_quality_menu()
-        
-        # Campo de Carpeta de Destino
-        folder_label = tk.Label(self.input_frame, text="Carpeta de Destino", font=("Segoe UI", 9, "bold"), fg=TEXT_PRIMARY, bg=BG_COLOR)
-        folder_label.pack(anchor="w", pady=(0, 3))
-        
-        folder_search_frame = tk.Frame(self.input_frame, bg=BG_COLOR)
-        folder_search_frame.pack(fill="x", pady=(0, 15))
-        
-        self.folder_entry = tk.Entry(folder_search_frame, font=("Segoe UI", 9), bg=SURFACE_COLOR, fg=TEXT_SECONDARY,
-                                     relief="flat", highlightthickness=1, highlightbackground=BORDER_COLOR, highlightcolor=BORDER_COLOR)
-        self.folder_entry.pack(side="left", fill="x", expand=True, ipady=4)
+        self.q_menu = tk.OptionMenu(self.audio_quality_frame, self.q_var, "128", "192", "256", "320")
+        self.q_menu.config(
+            font=("Segoe UI", 9), bg=SURFACE_ELEVATED, fg=TEXT_PRIMARY,
+            activebackground=BORDER_COLOR, activeforeground=TEXT_PRIMARY,
+            relief="flat", highlightthickness=0, bd=0,
+        )
+        self.q_menu["menu"].config(
+            bg=SURFACE_ELEVATED, fg=TEXT_PRIMARY,
+            activebackground=ACCENT_PRIMARY, activeforeground=BG_COLOR,
+        )
+        self.q_menu.pack(anchor="w", fill="x")
+
+        self.video_quality_frame = tk.Frame(form, bg=SURFACE_COLOR)
+        tk.Label(
+            self.video_quality_frame, text="CALIDAD DE VIDEO", font=("Segoe UI", 8, "bold"),
+            fg=TEXT_SECONDARY, bg=SURFACE_COLOR, anchor="w"
+        ).pack(anchor="w", pady=(18, 5))
+        self.video_quality_var = tk.StringVar(value="")
+        self.video_quality_menu = tk.OptionMenu(
+            self.video_quality_frame, self.video_quality_var, "Analizá un enlace"
+        )
+        self.video_quality_menu.config(
+            font=("Segoe UI", 9), bg=SURFACE_ELEVATED, fg=TEXT_PRIMARY,
+            activebackground=BORDER_COLOR, activeforeground=TEXT_PRIMARY,
+            relief="flat", highlightthickness=0, bd=0, state=tk.DISABLED,
+        )
+        self.video_quality_menu["menu"].config(
+            bg=SURFACE_ELEVATED, fg=TEXT_PRIMARY,
+            activebackground=ACCENT_PRIMARY, activeforeground=BG_COLOR,
+        )
+        self.video_quality_menu.pack(anchor="w", fill="x")
+        self.video_quality_status = tk.Label(
+            self.video_quality_frame, text="Pulsá Analizar para consultar las resoluciones.",
+            font=("Segoe UI", 8), fg=TEXT_SECONDARY, bg=SURFACE_COLOR, anchor="w"
+        )
+        self.video_quality_status.pack(fill="x", pady=(5, 0))
+
+        folder_label = tk.Label(
+            form, text="CARPETA DE DESTINO", font=("Segoe UI", 8, "bold"),
+            fg=TEXT_SECONDARY, bg=SURFACE_COLOR, anchor="w"
+        )
+        folder_label.pack(anchor="w", pady=(20, 5))
+        folder_row = tk.Frame(form, bg=SURFACE_COLOR)
+        folder_row.pack(fill="x")
+        self.folder_entry = tk.Entry(
+            folder_row, font=("Segoe UI", 8), bg=SURFACE_ELEVATED,
+            fg=TEXT_SECONDARY, relief="flat", highlightthickness=1,
+            highlightbackground=BORDER_COLOR, highlightcolor=BORDER_COLOR,
+        )
+        self.folder_entry.pack(side="left", fill="x", expand=True, ipady=6)
         self.folder_entry.insert(0, self.output_dir)
         self.folder_entry.config(state="readonly")
-        
-        browse_btn = ModernButton(folder_search_frame, text="Examinar...", font=("Segoe UI", 8, "bold"),
-                                  bg=SURFACE_COLOR, hover_bg=BORDER_COLOR, fg=TEXT_PRIMARY, command=self.browse_folder)
-        browse_btn.pack(side="right", padx=(10, 0), ipady=2)
-        
-        # Botón de Descarga
-        self.download_btn = ModernButton(self.input_frame, text="Añadir a la Cola", font=("Segoe UI", 10, "bold"),
-                                          bg=ACCENT_BLUE, hover_bg="#b4befe", fg="#11111b", command=self.on_start_click)
-        self.download_btn.pack(fill="x", ipady=6)
+        ModernButton(
+            folder_row, text="Cambiar", font=("Segoe UI", 8, "bold"),
+            bg=SURFACE_ELEVATED, hover_bg=BORDER_COLOR, fg=TEXT_PRIMARY,
+            command=self.browse_folder,
+        ).pack(side="left", padx=(7, 0), ipady=4)
+
+        self.download_btn = ModernButton(
+            form, text="Añadir a la cola", font=("Segoe UI", 10, "bold"),
+            bg=ACCENT_PRIMARY, hover_bg="#FF8477", fg=BG_COLOR,
+            command=self.on_start_click,
+        )
+        self.download_btn.pack(fill="x", side="bottom", ipady=8, pady=(20, 0))
+
+        self.set_format(self.media_format)
+
+    def paste_url(self):
+        try:
+            clipboard_text = self.root.clipboard_get().strip()
+        except tk.TclError:
+            clipboard_text = ""
+        if clipboard_text:
+            self.url_entry.delete(0, tk.END)
+            self.url_entry.insert(0, clipboard_text)
+            self.on_url_changed()
+        self.url_entry.focus_set()
+
+    def on_url_changed(self):
+        self._invalidate_video_analysis()
+        self.url_error_label.config(text="")
+        self._update_control_state()
+
+    def set_format(self, media_format):
+        if media_format not in ("mp3", "mp4", "mkv"):
+            return
+        self.fmt_var.set(media_format)
+        for fmt, button in self.format_buttons.items():
+            selected = fmt == media_format
+            button.config(
+                bg=ACCENT_PRIMARY if selected else SURFACE_ELEVATED,
+                fg=BG_COLOR if selected else TEXT_PRIMARY,
+            )
+            button.normal_bg = ACCENT_PRIMARY if selected else SURFACE_ELEVATED
+
+        if media_format == "mp3":
+            self.video_quality_frame.pack_forget()
+            self.audio_quality_frame.pack(fill="x")
+            self._invalidate_video_analysis()
+        else:
+            self.audio_quality_frame.pack_forget()
+            self.video_quality_frame.pack(fill="x")
+            if self.analyzed_url != self.url_entry.get().strip():
+                self._invalidate_video_analysis()
+        self._update_control_state()
 
     def toggle_quality_menu(self):
-        """Activa o desactiva la selección de calidad de audio según el formato."""
-        if self.fmt_var.get() == "mp3":
-            self.q_menu.config(state="normal")
-            self.q_label.config(fg=TEXT_PRIMARY)
+        """Compatibilidad con el nombre utilizado por versiones anteriores."""
+        self.set_format(self.fmt_var.get())
+
+    def _invalidate_video_analysis(self):
+        self._analysis_token += 1
+        self.analysis_state = "idle"
+        self.analyzed_url = ""
+        self.available_video_heights = []
+        if not hasattr(self, "video_quality_var"):
+            return
+        self.video_quality_var.set("")
+        menu = self.video_quality_menu["menu"]
+        menu.delete(0, "end")
+        menu.add_command(label="Analizá un enlace", command=lambda: None)
+        self.video_quality_status.config(text="Pulsá Analizar para consultar las resoluciones.", fg=TEXT_SECONDARY)
+        self.video_quality_menu.config(state=tk.DISABLED)
+
+    def _update_control_state(self):
+        if not hasattr(self, "url_entry"):
+            return
+        url = self.url_entry.get().strip()
+        is_video = self.fmt_var.get() in ("mp4", "mkv")
+        analyzed = self.analysis_state == "ready" and self.analyzed_url == url
+        analyzing = self.analysis_state == "loading"
+
+        if is_video:
+            self.analyze_btn.config(
+                state=tk.DISABLED if analyzing or not url else tk.NORMAL,
+                text="Analizando..." if analyzing else "Analizar",
+            )
+            self.video_quality_menu.config(state=tk.NORMAL if analyzed else tk.DISABLED)
+            can_download = bool(url) and (self.direct_mode or analyzed)
         else:
-            self.q_menu.config(state="disabled")
-            self.q_label.config(fg=TEXT_SECONDARY)
+            self.analyze_btn.config(state=tk.DISABLED, text="Solo video")
+            can_download = bool(url)
+
+        self.download_btn.config(state=tk.NORMAL if can_download else tk.DISABLED)
+
+    def analyze_url(self):
+        url = self.url_entry.get().strip()
+        if not url:
+            self.url_error_label.config(text="Pegá una URL antes de analizar.")
+            return
+        if self.fmt_var.get() not in ("mp4", "mkv"):
+            return
+
+        self._analysis_token += 1
+        token = self._analysis_token
+        self.analysis_state = "loading"
+        self.analyzed_url = ""
+        self.available_video_heights = []
+        self.url_error_label.config(text="")
+        self.video_quality_status.config(text="Consultando resoluciones...", fg=ACCENT_AMBER)
+        self._update_control_state()
+
+        threading.Thread(
+            target=self._analyze_url_worker,
+            args=(url, token),
+            daemon=True,
+        ).start()
+
+    def _analyze_url_worker(self, url, token):
+        try:
+            ydl_opts = {"quiet": True, "no_warnings": True, "noplaylist": True}
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+            heights = extract_video_heights(info)
+            self.root.after(0, lambda: self._finish_video_analysis(url, token, heights))
+        except Exception as error:
+            message = str(error).strip() or "No se pudo consultar el enlace."
+            if len(message) > 140:
+                message = message[:137] + "..."
+            self.root.after(0, lambda: self._fail_video_analysis(url, token, message))
+
+    def _finish_video_analysis(self, url, token, heights):
+        if token != self._analysis_token or url != self.url_entry.get().strip():
+            return
+
+        self.analysis_state = "ready"
+        self.analyzed_url = url
+        self.available_video_heights = heights
+        menu = self.video_quality_menu["menu"]
+        menu.delete(0, "end")
+
+        if heights:
+            for height in heights:
+                menu.add_command(
+                    label=f"{height}p",
+                    command=lambda value=str(height): self.video_quality_var.set(value),
+                )
+            self.video_quality_var.set(str(heights[0]))
+            self.video_quality_status.config(
+                text=f"{len(heights)} resoluciones disponibles.", fg=ACCENT_GREEN
+            )
+        else:
+            menu.add_command(label="Mejor disponible", command=lambda: self.video_quality_var.set("best"))
+            self.video_quality_var.set("best")
+            self.video_quality_status.config(
+                text="El sitio no informa resoluciones; se usará la mejor disponible.",
+                fg=ACCENT_AMBER,
+            )
+
+        self.video_quality_menu.config(state=tk.NORMAL)
+        self._update_control_state()
+
+    def _fail_video_analysis(self, url, token, message):
+        if token != self._analysis_token or url != self.url_entry.get().strip():
+            return
+        self.analysis_state = "error"
+        self.analyzed_url = ""
+        self.video_quality_status.config(text="No se pudieron consultar las resoluciones.", fg=ACCENT_RED)
+        self.url_error_label.config(text=message)
+        self._update_control_state()
+
+    def _selected_video_quality(self):
+        value = self.video_quality_var.get().strip()
+        if not value or value == "best":
+            return None
+        try:
+            return int(value)
+        except ValueError:
+            return None
 
     def browse_folder(self):
         """Abre un diálogo interactivo para elegir la carpeta de destino."""
@@ -674,22 +1160,54 @@ class DonLoaderApp:
         """Valida e inicia el proceso de descarga, agregándolo a la cola."""
         url = self.url_entry.get().strip()
         if not url:
-            messagebox.showerror("Error", "Por favor, ingresa una URL válida.")
+            self.url_error_label.config(text="Pegá una URL válida para continuar.")
             return
-        
+
         media_format = self.fmt_var.get()
-        quality = self.q_var.get()
-        
-        # Crear la tarea
-        task_id = len(self.tasks)
-        task = DownloadTask(self, self.scroll_frame.scrollable_frame, task_id, url, media_format, quality, self.output_dir)
+        if media_format in ("mp4", "mkv") and not self.direct_mode:
+            if self.analysis_state != "ready" or self.analyzed_url != url:
+                self.url_error_label.config(text="Analizá el enlace para elegir una calidad de video.")
+                return
+
+        task_id = self._next_task_id
+        self._next_task_id += 1
+        selected_video_quality = self.video_quality if self.direct_mode else self._selected_video_quality()
+        task = DownloadTask(
+            self,
+            self.scroll_frame.scrollable_frame,
+            task_id,
+            url,
+            media_format,
+            self.q_var.get(),
+            self.output_dir,
+            video_quality=selected_video_quality if media_format in ("mp4", "mkv") else None,
+        )
         self.tasks.append(task)
-        
-        # Limpiar el campo de entrada
         self.url_entry.delete(0, tk.END)
-        
-        # Procesar cola
+        self._invalidate_video_analysis()
+        self.url_error_label.config(text="")
+        self.update_queue_state()
         self.process_queue()
+
+    def update_queue_state(self):
+        active_count = len(self.tasks)
+        self.queue_count_label.config(text=f"Cola de descargas · {active_count}")
+        has_completed = any(task.status == "Completado" for task in self.tasks)
+        self.clear_completed_btn.config(state=tk.NORMAL if has_completed else tk.DISABLED)
+        if self.tasks:
+            self.empty_queue_frame.pack_forget()
+        else:
+            self.empty_queue_frame.pack(fill="x", padx=2, pady=2)
+
+    def clear_completed(self):
+        remaining = []
+        for task in self.tasks:
+            if task.status == "Completado":
+                task.destroy()
+            else:
+                remaining.append(task)
+        self.tasks = remaining
+        self.update_queue_state()
 
     def process_queue(self):
         """Gestiona el inicio de las tareas respetando el límite de 3 concurrentes."""
@@ -697,15 +1215,13 @@ class DonLoaderApp:
         if len(active_tasks) < 3:
             queued_tasks = [t for t in self.tasks if t.status == "En cola"]
             if queued_tasks:
-                task_to_start = queued_tasks[0]
-                task_to_start.start()
-                # Recursión en el siguiente ciclo del main loop
+                queued_tasks[0].start()
                 self.root.after(100, self.process_queue)
 
     def on_task_finished(self, task, success):
         """Callback llamado al terminar una descarga para procesar el resto de la cola."""
+        self.root.after(0, self.update_queue_state)
         if self.direct_mode:
-            # En modo directo, si es la única tarea, cerrar después de 1.5s
             active = [t for t in self.tasks if t.status in ["En cola", "Analizando...", "Descargando..."]]
             if not active:
                 self.root.after(1500, self.root.destroy)
@@ -736,7 +1252,7 @@ def cli_progress_hook(d):
         sys.stdout.write("\nDescarga completada. Procesando archivos con FFmpeg...\n")
         sys.stdout.flush()
 
-def run_cli_download(url, media_format, output_dir, quality):
+def run_cli_download(url, media_format, output_dir, quality, video_quality=None):
     """Ejecuta la descarga directamente por consola (CLI)."""
     optimize_network()
     ffmpeg_path = get_ffmpeg_path()
@@ -749,6 +1265,7 @@ def run_cli_download(url, media_format, output_dir, quality):
         'ffmpeg_location': ffmpeg_path,
         'quiet': True,
         'no_warnings': True,
+        'noplaylist': True,
     }
     title = "Video de Internet"
     try:
@@ -784,7 +1301,7 @@ def run_cli_download(url, media_format, output_dir, quality):
         })
     elif media_format in ['mp4', 'mkv']:
         ydl_opts.update({
-            'format': 'bestvideo+bestaudio/best',
+            'format': build_video_format_selector(media_format, video_quality),
             'merge_output_format': media_format,
         })
         
@@ -797,13 +1314,24 @@ def run_cli_download(url, media_format, output_dir, quality):
         print(f"\nOcurrió un error: {e}")
         sys.exit(1)
 
-def main():
+def build_argument_parser():
     parser = argparse.ArgumentParser(description="DonLoader - Descargador Multimedia Optimizado y Portable")
     parser.add_argument("-u", "--url", default=None, help="URL del video/audio a descargar")
     parser.add_argument("-f", "--format", choices=["mp3", "mp4", "mkv"], default="mp3", help="Formato de salida")
     parser.add_argument("-o", "--output", default=None, help="Carpeta de destino")
     parser.add_argument("-q", "--quality", default="192", choices=["128", "192", "256", "320"], help="Calidad de audio para MP3")
+    parser.add_argument(
+        "--video-quality",
+        type=positive_int,
+        default=None,
+        help="Altura máxima del video en píxeles (ej. 720)",
+    )
     parser.add_argument("--no-gui", action="store_true", help="Usar solo la interfaz por línea de comandos")
+    return parser
+
+
+def main():
+    parser = build_argument_parser()
     
     args = parser.parse_args()
     
@@ -811,7 +1339,13 @@ def main():
         if not args.url:
             print("Error: Se requiere una URL (parámetro -u) cuando se ejecuta con --no-gui.")
             sys.exit(1)
-        run_cli_download(args.url, args.format, args.output or get_downloads_folder(), args.quality)
+        run_cli_download(
+            args.url,
+            args.format,
+            args.output or get_downloads_folder(),
+            args.quality,
+            args.video_quality,
+        )
     else:
         # Optimizar red antes de iniciar
         optimize_network()
@@ -819,8 +1353,15 @@ def main():
         # Inicializar Tkinter
         root = tk.Tk()
         direct_mode = (args.url is not None)
-        app = DonLoaderApp(root, url=args.url, media_format=args.format, 
-                             output_dir=args.output, quality=args.quality, direct_mode=direct_mode)
+        app = DonLoaderApp(
+            root,
+            url=args.url,
+            media_format=args.format,
+            output_dir=args.output,
+            quality=args.quality,
+            direct_mode=direct_mode,
+            video_quality=args.video_quality,
+        )
         root.mainloop()
 
 if __name__ == "__main__":
